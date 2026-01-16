@@ -974,6 +974,48 @@
             </div>
           </div>`;
       }
+      else if (state.status === 'email-required') {
+        const analysis = state.analysis;
+        const seoIssues = analysis?.seo?.issues?.length > 0 ? analysis.seo.issues.join(', ') : 'None';
+        const seoClass = analysis?.seo?.issues?.length > 0 ? 'warning' : 'success';
+        const blocks = analysis?.blocks?.blockNames?.length > 0 ? analysis.blocks.blockNames.join(', ') : 'None';
+
+        content = `
+          <div class="status-content">
+            <div class="status-header" style="color: var(--color-primary);">Enter Your Email</div>
+            <p style="font-size: 13px; color: var(--color-text-light); margin-bottom: 12px;">
+              Your email identifies you as the submitter.
+            </p>
+            <div class="status-details">
+              <div class="info-row">
+                <span class="info-label">Title</span>
+                <span class="info-value">${state.title}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Name</span>
+                <span class="info-value">${state.name}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">SEO Issues</span>
+                <span class="info-value ${seoClass}">${seoIssues}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Blocks</span>
+                <span class="info-value">${analysis?.blocks?.totalBlocks || 0} (${blocks})</span>
+              </div>
+            </div>
+            <div class="notes-section">
+              <label class="notes-label">Email Address *</label>
+              <input type="email" class="notes-input" id="email-input" placeholder="you@example.com" style="min-height: auto; padding: 10px 12px;">
+              <p style="font-size: 11px; color: var(--color-text-light); margin-top: 4px;">Your email will be saved for future submissions.</p>
+            </div>
+            <div class="notes-section">
+              <label class="notes-label">Notes (Optional)</label>
+              <textarea class="notes-input" id="notes-input" placeholder="Enter any additional notes for this review submission..."></textarea>
+            </div>
+            <button class="btn btn-primary" id="btn-submit-with-email">Submit for Review</button>
+          </div>`;
+      }
       else if (state.status === 'in-review') {
         const data = state.data;
         content = `
@@ -1123,6 +1165,15 @@
 
       document.getElementById('btn-submit')?.addEventListener('click', handleSubmit);
 
+      document.getElementById('btn-submit-with-email')?.addEventListener('click', handleSubmitWithEmail);
+
+      // Allow Enter key to submit email
+      document.getElementById('email-input')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          handleSubmitWithEmail();
+        }
+      });
+
       document.getElementById('toggle-debug')?.addEventListener('click', () => {
         const panel = document.getElementById('debug-panel');
         if (panel) {
@@ -1136,6 +1187,51 @@
     // MAIN FLOW
     // ============================================
 
+    function isValidEmail(email) {
+      return email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    async function handleSubmitWithEmail() {
+      const emailInput = document.getElementById('email-input');
+      const notesInput = document.getElementById('notes-input');
+      const email = emailInput?.value?.trim() || '';
+      const notes = notesInput?.value?.trim() || '';
+
+      if (!isValidEmail(email)) {
+        emailInput.style.borderColor = 'var(--color-error)';
+        emailInput.focus();
+        return;
+      }
+
+      // Save email for future use
+      saveEmail(email);
+      currentContext.email = email;
+
+      render({ status: 'loading', message: 'Submitting review…' });
+
+      try {
+        const payload = buildPayload(currentContext, currentAnalysis, email, notes);
+        log('Payload', payload);
+
+        await postToWebhook(payload);
+
+        // Save review state
+        setReviewState(currentContext.path, {
+          title: payload.title,
+          name: payload.name,
+          submittedBy: email,
+          previewUrl: payload.previewUrl,
+          liveUrl: payload.liveUrl,
+          notes: notes,
+        });
+
+        render({ status: 'success', payload });
+      } catch (err) {
+        log('Submit error', err.message);
+        render({ status: 'error', message: `Failed to submit: ${err.message}` });
+      }
+    }
+
     function showReadyState() {
       const name = currentContext.path.split('/').pop() || 'index';
       let title = currentAnalysis.seo?.title?.content || name;
@@ -1144,6 +1240,20 @@
         if (h1) title = h1.text;
       }
 
+      const email = currentContext.email;
+      
+      // If no email, show email input form
+      if (!email || !isValidEmail(email)) {
+        render({
+          status: 'email-required',
+          title,
+          name,
+          analysis: currentAnalysis,
+        });
+        return;
+      }
+
+      // Email exists, show ready state with just notes
       render({
         status: 'ready',
         title,
