@@ -292,20 +292,75 @@
       }
     }
 
+    // Parse context from DA.live URL hash
+    function getContextFromUrl() {
+      // Try parent window URL first (since we're in iframe)
+      let url = '';
+      try {
+        url = window.parent.location.href;
+      } catch (e) {
+        url = document.referrer || window.location.href;
+      }
+
+      console.log('[Send For Review] Parsing URL:', url);
+
+      // Parse DA.live edit URL: da.live/edit#/owner/repo/path
+      const hashMatch = url.match(/da\.live\/edit#\/([^/]+)\/([^/]+)\/?(.*)$/);
+      if (hashMatch) {
+        return {
+          owner: hashMatch[1],
+          repo: hashMatch[2],
+          path: hashMatch[3] || 'index',
+          ref: 'main',
+        };
+      }
+
+      // Try parsing from aem.page/aem.live URL
+      const aemMatch = url.match(/([^-]+)--([^-]+)--([^.]+)\.aem\.(page|live)\/?(.*)?$/);
+      if (aemMatch) {
+        return {
+          ref: aemMatch[1],
+          repo: aemMatch[2],
+          owner: aemMatch[3],
+          path: aemMatch[5] || 'index',
+        };
+      }
+
+      return null;
+    }
+
     // Initialize with DA SDK
     (async function init() {
       try {
-        const { context } = await DA_SDK;
-        console.log('[Send For Review] DA Context:', context);
+        let context = null;
 
-        if (!context.owner || !context.repo) {
+        // First try DA SDK
+        try {
+          const sdk = await DA_SDK;
+          console.log('[Send For Review] DA SDK:', sdk);
+          if (sdk.context && sdk.context.owner && sdk.context.repo) {
+            context = sdk.context;
+          }
+        } catch (sdkError) {
+          console.warn('[Send For Review] SDK error:', sdkError);
+        }
+
+        // Fallback to URL parsing
+        if (!context || !context.owner || !context.repo) {
+          console.log('[Send For Review] Falling back to URL parsing');
+          context = getContextFromUrl();
+        }
+
+        console.log('[Send For Review] Final context:', context);
+
+        if (!context || !context.owner || !context.repo) {
           renderError('Could not determine page context');
           return;
         }
 
         await sendForReview(context);
       } catch (error) {
-        console.error('[Send For Review] SDK Error:', error);
+        console.error('[Send For Review] Init Error:', error);
         renderError('Failed to initialize: ' + error.message);
       }
     })();
