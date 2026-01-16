@@ -223,12 +223,18 @@
     }
 
     async function buildPayload(context) {
-      const { owner, repo, path = 'index', ref = 'main' } = context;
-      const cleanPath = (path || 'index').replace(/^\/+/, '').replace(/\.html$/, '');
-      const name = cleanPath.split('/').filter(Boolean).pop() || 'index';
+      const { owner, repo, ref = 'main' } = context;
+      // Clean the path - remove leading slashes, .html extension, and any URL parts
+      let path = context.path || 'index';
+      path = path.replace(/^\/+/, '').replace(/\.html$/, '');
+      
+      const name = path.split('/').filter(Boolean).pop() || 'index';
       const baseHost = `${ref}--${repo}--${owner}`;
-      const previewUrl = `https://${baseHost}.aem.page/${cleanPath}`;
-      const liveUrl = `https://${baseHost}.aem.live/${cleanPath}`;
+      const previewUrl = `https://${baseHost}.aem.page/${path}`;
+      const liveUrl = `https://${baseHost}.aem.live/${path}`;
+
+      console.log('[Send For Review] Building payload for:', { owner, repo, path, ref });
+      console.log('[Send For Review] Preview URL:', previewUrl);
 
       let doc = document;
       try {
@@ -236,9 +242,12 @@
         if (resp.ok) {
           const html = await resp.text();
           doc = new DOMParser().parseFromString(html, 'text/html');
+          console.log('[Send For Review] Fetched preview page successfully');
+        } else {
+          console.warn('[Send For Review] Preview fetch failed:', resp.status);
         }
       } catch (e) {
-        console.warn('Could not fetch preview, using current doc');
+        console.warn('[Send For Review] Could not fetch preview:', e.message);
       }
 
       const pageTitle = doc.querySelector('title')?.textContent?.trim() 
@@ -248,7 +257,7 @@
       return {
         title: pageTitle,
         name,
-        path: `/${cleanPath}`,
+        path: `/${path}`,
         url: liveUrl,
         previewUrl,
         liveUrl,
@@ -294,29 +303,55 @@
 
     // Parse context from DA.live URL hash
     function getContextFromUrl() {
-      // Try parent window URL first (since we're in iframe)
-      let url = '';
+      // The DA.live URL format is: da.live/edit#/owner/repo/path
+      // We need to get this from the parent/top window since we're in an iframe
+      
+      let daUrl = '';
+      
+      // Try to get the DA.live URL from various sources
       try {
-        url = window.parent.location.href;
+        // First try top window (most reliable)
+        daUrl = window.top.location.href;
+        console.log('[Send For Review] Got URL from top:', daUrl);
       } catch (e) {
-        url = document.referrer || window.location.href;
+        try {
+          // Try parent window
+          daUrl = window.parent.location.href;
+          console.log('[Send For Review] Got URL from parent:', daUrl);
+        } catch (e2) {
+          // Use referrer as last resort
+          daUrl = document.referrer;
+          console.log('[Send For Review] Got URL from referrer:', daUrl);
+        }
       }
 
-      console.log('[Send For Review] Parsing URL:', url);
+      console.log('[Send For Review] Parsing DA URL:', daUrl);
 
       // Parse DA.live edit URL: da.live/edit#/owner/repo/path
-      const hashMatch = url.match(/da\.live\/edit#\/([^/]+)\/([^/]+)\/?(.*)$/);
-      if (hashMatch) {
-        return {
-          owner: hashMatch[1],
-          repo: hashMatch[2],
-          path: hashMatch[3] || 'index',
-          ref: 'main',
-        };
+      // Example: https://da.live/edit#/shravanbac/sb/index
+      const hashIndex = daUrl.indexOf('#/');
+      if (hashIndex !== -1) {
+        const hashPart = daUrl.substring(hashIndex + 2); // Remove '#/'
+        const parts = hashPart.split('/');
+        
+        if (parts.length >= 2) {
+          const owner = parts[0];
+          const repo = parts[1];
+          const path = parts.slice(2).join('/') || 'index';
+          
+          console.log('[Send For Review] Parsed context:', { owner, repo, path });
+          
+          return {
+            owner: owner,
+            repo: repo,
+            path: path,
+            ref: 'main',
+          };
+        }
       }
 
-      // Try parsing from aem.page/aem.live URL
-      const aemMatch = url.match(/([^-]+)--([^-]+)--([^.]+)\.aem\.(page|live)\/?(.*)?$/);
+      // Fallback: Try parsing from aem.page/aem.live URL in referrer
+      const aemMatch = daUrl.match(/([^-]+)--([^-]+)--([^.]+)\.aem\.(page|live)\/?(.*)?$/);
       if (aemMatch) {
         return {
           ref: aemMatch[1],
@@ -334,27 +369,32 @@
       try {
         let context = null;
 
-        // First try DA SDK
-        try {
-          const sdk = await DA_SDK;
-          console.log('[Send For Review] DA SDK:', sdk);
-          if (sdk.context && sdk.context.owner && sdk.context.repo) {
-            context = sdk.context;
-          }
-        } catch (sdkError) {
-          console.warn('[Send For Review] SDK error:', sdkError);
-        }
+        // First try to parse from URL (most reliable for DA.live)
+        context = getContextFromUrl();
+        console.log('[Send For Review] Context from URL:', context);
 
-        // Fallback to URL parsing
+        // If URL parsing failed, try DA SDK
         if (!context || !context.owner || !context.repo) {
-          console.log('[Send For Review] Falling back to URL parsing');
-          context = getContextFromUrl();
+          try {
+            const sdk = await DA_SDK;
+            console.log('[Send For Review] DA SDK response:', sdk);
+            if (sdk.context && sdk.context.owner && sdk.context.repo) {
+              context = {
+                owner: sdk.context.owner,
+                repo: sdk.context.repo,
+                path: sdk.context.path || 'index',
+                ref: sdk.context.ref || 'main',
+              };
+            }
+          } catch (sdkError) {
+            console.warn('[Send For Review] SDK error:', sdkError);
+          }
         }
 
         console.log('[Send For Review] Final context:', context);
 
         if (!context || !context.owner || !context.repo) {
-          renderError('Could not determine page context');
+          renderError('Could not determine page context. Make sure you have a page open in the editor.');
           return;
         }
 
