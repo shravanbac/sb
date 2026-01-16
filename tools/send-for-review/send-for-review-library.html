@@ -321,34 +321,112 @@
     // STORAGE - Email & Review State
     // ============================================
 
+    // Try to get email from parent window via postMessage
+    async function getEmailFromParent() {
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          log('Parent email request timed out');
+          resolve(null);
+        }, 2000);
+
+        const handler = (event) => {
+          if (event.data?.type === 'da-user-email' && event.data?.email) {
+            clearTimeout(timeout);
+            window.removeEventListener('message', handler);
+            log('Got email from parent via postMessage', event.data.email);
+            resolve(event.data.email);
+          }
+        };
+
+        window.addEventListener('message', handler);
+        
+        // Request email from parent
+        try {
+          window.parent.postMessage({ type: 'request-user-email' }, '*');
+        } catch (e) {
+          clearTimeout(timeout);
+          window.removeEventListener('message', handler);
+          resolve(null);
+        }
+      });
+    }
+
     function getStoredEmail() {
-      // Try sessionStorage first, then localStorage
-      let email = sessionStorage.getItem(CONFIG.emailStorageKey);
-      if (!email) {
-        email = localStorage.getItem(CONFIG.emailStorageKey);
-      }
-      // Also check for Adobe IMS profile in localStorage
-      if (!email) {
-        try {
-          const imsProfile = localStorage.getItem('adobeid_ims_profile');
-          if (imsProfile) {
-            const parsed = JSON.parse(imsProfile);
-            email = parsed?.email;
+      let email = null;
+      
+      // Method 1: Check sessionStorage for Adobe IMS profile (as shown in screenshot)
+      try {
+        const imsProfileSession = sessionStorage.getItem('adobeid_ims_profile');
+        if (imsProfileSession) {
+          const parsed = JSON.parse(imsProfileSession);
+          if (parsed?.email) {
+            email = parsed.email;
+            log('Found email in sessionStorage adobeid_ims_profile', email);
+            return email;
           }
-        } catch (e) {}
+        }
+      } catch (e) {
+        log('Error reading sessionStorage adobeid_ims_profile', e.message);
       }
-      // Check sessionStorage for DA user
-      if (!email) {
-        try {
-          const daUser = sessionStorage.getItem('da_user');
-          if (daUser) {
-            const parsed = JSON.parse(daUser);
-            email = parsed?.email;
+
+      // Method 2: Check localStorage for Adobe IMS profile
+      try {
+        const imsProfileLocal = localStorage.getItem('adobeid_ims_profile');
+        if (imsProfileLocal) {
+          const parsed = JSON.parse(imsProfileLocal);
+          if (parsed?.email) {
+            email = parsed.email;
+            log('Found email in localStorage adobeid_ims_profile', email);
+            return email;
           }
-        } catch (e) {}
+        }
+      } catch (e) {
+        log('Error reading localStorage adobeid_ims_profile', e.message);
       }
-      log('Stored email', email);
-      return email && email.includes('@') ? email : null;
+
+      // Method 3: Try our own saved email key
+      email = sessionStorage.getItem(CONFIG.emailStorageKey);
+      if (email && email.includes('@')) {
+        log('Found email in sessionStorage sfr key', email);
+        return email;
+      }
+      
+      email = localStorage.getItem(CONFIG.emailStorageKey);
+      if (email && email.includes('@')) {
+        log('Found email in localStorage sfr key', email);
+        return email;
+      }
+
+      // Method 4: Check for DA user in sessionStorage
+      try {
+        const daUser = sessionStorage.getItem('da_user');
+        if (daUser) {
+          const parsed = JSON.parse(daUser);
+          if (parsed?.email) {
+            log('Found email in da_user', parsed.email);
+            return parsed.email;
+          }
+        }
+      } catch (e) {}
+
+      // Method 5: Try to access from parent window's sessionStorage (cross-origin might block)
+      try {
+        if (window.parent !== window) {
+          const parentImsProfile = window.parent.sessionStorage?.getItem('adobeid_ims_profile');
+          if (parentImsProfile) {
+            const parsed = JSON.parse(parentImsProfile);
+            if (parsed?.email) {
+              log('Found email in parent sessionStorage', parsed.email);
+              return parsed.email;
+            }
+          }
+        }
+      } catch (e) {
+        log('Cannot access parent sessionStorage (expected)', e.message);
+      }
+
+      log('No email found in storage');
+      return null;
     }
 
     function saveEmail(email) {
@@ -458,12 +536,16 @@
         });
 
         if (sdk?.context) {
+          // The SDK should provide the user email from the DA.live session
+          const email = sdk.context.email || sdk.context.user?.email || '';
+          log('SDK email', email);
+          
           return {
             org: sdk.context.org || sdk.context.owner || '',
             site: sdk.context.repo || '',
             ref: sdk.context.ref || 'main',
             path: sdk.context.path || 'index',
-            email: sdk.context.email || '',
+            email: email,
             source: 'da-sdk'
           };
         }
@@ -485,13 +567,23 @@
       const sdkCtx = await getContextFromDASDK();
       log('SDK context', sdkCtx);
 
+      // Try to get email from various sources
+      let email = sdkCtx?.email || '';
+      if (!email) {
+        email = getStoredEmail() || '';
+      }
+      if (!email) {
+        email = await getEmailFromParent() || '';
+      }
+      log('Final email', email);
+
       // Merge contexts with priority: SDK > Referrer > URL params
       const ctx = {
         ref: sdkCtx?.ref || referrerCtx?.ref || urlParams.ref || CONFIG.defaultRef,
         site: sdkCtx?.site || referrerCtx?.site || urlParams.site || '',
         org: sdkCtx?.org || referrerCtx?.org || urlParams.org || '',
         path: sdkCtx?.path || referrerCtx?.path || urlParams.path || 'index',
-        email: sdkCtx?.email || getStoredEmail() || '',
+        email: email,
         source: sdkCtx?.source || referrerCtx?.source || 'url-params',
       };
 
