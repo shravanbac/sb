@@ -4,406 +4,754 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Send For Review</title>
-  <script src="https://da.live/nx/utils/sdk.js" type="module"></script>
+  <link rel="icon" href="data:,">
   <style>
+    :root {
+      --color-primary: #1a56db;
+      --color-primary-dark: #1e40af;
+      --color-success: #059669;
+      --color-error: #dc2626;
+      --color-warning: #d97706;
+      --color-text: #1f2937;
+      --color-text-light: #6b7280;
+      --color-bg: #f8fafc;
+      --color-card: #ffffff;
+      --color-border: #e5e7eb;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      padding: 20px;
-      background: #f5f5f5;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.5;
+      padding: 16px;
       min-height: 100vh;
     }
-    .container {
-      max-width: 400px;
+
+    .review-card {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      max-width: 440px;
       margin: 0 auto;
+      overflow: hidden;
     }
-    .card {
-      background: white;
-      border-radius: 8px;
-      padding: 24px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+
+    .review-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+      padding: 14px 18px;
+      color: #fff;
     }
-    h2 {
-      color: #004b87;
-      margin-bottom: 16px;
-      font-size: 18px;
-    }
-    .status {
-      padding: 12px 16px;
+
+    .logo {
+      background: #fff;
+      color: var(--color-primary);
+      font-weight: 700;
+      font-size: 14px;
+      padding: 4px 10px;
       border-radius: 6px;
-      margin-bottom: 16px;
-      font-weight: 500;
     }
-    .status.loading { background: #e3f2fd; color: #1565c0; }
-    .status.success { background: #d4edda; color: #155724; }
-    .status.error { background: #f8d7da; color: #721c24; }
+
+    .title { font-weight: 600; font-size: 15px; }
+
+    .review-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text-light);
+      padding: 12px 18px 8px;
+      border-bottom: 1px solid var(--color-border);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-content { padding: 16px 18px; }
+
+    .status-header {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-content.success .status-header { color: var(--color-success); }
+    .status-content.success .status-header::before {
+      content: "✓";
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: #d1fae5;
+      color: var(--color-success);
+      border-radius: 50%;
+      font-size: 14px;
+    }
+
+    .status-content.error .status-header { color: var(--color-error); }
+    .status-content.error .status-header::before {
+      content: "✕";
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: #fee2e2;
+      color: var(--color-error);
+      border-radius: 50%;
+      font-size: 14px;
+    }
+
+    .status-content.loading { text-align: center; padding: 24px 18px; }
+
+    .status-message {
+      color: var(--color-text-light);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--color-border);
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status-details {
+      background: #f9fafb;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-top: 12px;
+    }
+
+    .status-details p {
+      font-size: 13px;
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+
+    .status-details p:last-child { margin-bottom: 0; }
+    .status-details strong { color: var(--color-primary-dark); }
+    .status-details a { color: var(--color-primary); text-decoration: none; }
+    .status-details a:hover { text-decoration: underline; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 16px;
+      width: 100%;
+    }
+
+    .btn-primary { background: var(--color-primary); color: #fff; }
+    .btn-primary:hover { background: var(--color-primary-dark); }
+
     .info-row {
       display: flex;
       justify-content: space-between;
       padding: 8px 0;
-      border-bottom: 1px solid #eee;
-      font-size: 14px;
+      border-bottom: 1px solid var(--color-border);
+      font-size: 13px;
     }
     .info-row:last-child { border-bottom: none; }
-    .info-label { color: #666; }
-    .info-value { color: #333; font-weight: 500; text-align: right; max-width: 60%; word-break: break-word; }
-    .info-value.warning { color: #856404; }
-    .btn {
+    .info-label { color: var(--color-text-light); }
+    .info-value { color: var(--color-text); font-weight: 500; text-align: right; max-width: 60%; word-break: break-word; }
+    .info-value.warning { color: var(--color-warning); }
+    .info-value.success { color: var(--color-success); }
+
+    .tag {
       display: inline-block;
-      padding: 10px 20px;
-      background: #0077c8;
-      color: white;
-      border: none;
+      background: #fef3c7;
+      color: #92400e;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin: 2px;
+    }
+
+    .debug-panel {
+      margin-top: 12px;
+      padding: 10px;
+      background: #fef3c7;
       border-radius: 6px;
-      font-size: 14px;
-      font-weight: 500;
+      font-size: 10px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .toggle-debug {
+      font-size: 11px;
+      color: var(--color-text-light);
       cursor: pointer;
-      margin-top: 16px;
-      width: 100%;
+      margin-top: 12px;
+      text-decoration: underline;
     }
-    .btn:hover { background: #005a9e; }
-    .btn:disabled { background: #ccc; cursor: not-allowed; }
-    .spinner {
-      width: 24px;
-      height: 24px;
-      border: 3px solid #e0e0e0;
-      border-top-color: #0077c8;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 12px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="card">
-      <h2>📤 Send For Review</h2>
-      <div id="content">
-        <div class="status loading">
+  <div id="details">
+    <div class="review-card">
+      <div class="review-header">
+        <span class="logo">SB</span>
+        <span class="title">Tech Labs</span>
+      </div>
+      <div class="review-section-title">Send For Review</div>
+      <div class="status-content loading">
+        <div class="status-message">
           <div class="spinner"></div>
-          Initializing...
+          <span>Initializing...</span>
         </div>
       </div>
     </div>
   </div>
 
   <script type="module">
-    import DA_SDK from 'https://da.live/nx/utils/sdk.js';
+    // ============================================
+    // SEND FOR REVIEW - DA.live Library Plugin
+    // Based on SB Tech Labs v4.3
+    // ============================================
 
-    const DEFAULT_WEBHOOK = 'https://hook.us2.make.com/d5lqgghlwlcalpy2zw0l7tqukr0u75bd';
-    const contentEl = document.getElementById('content');
+    console.log('[SFR Library] Starting...');
 
-    function render(html) {
-      contentEl.innerHTML = html;
+    const CONFIG = {
+      webhookUrl: 'https://hook.us2.make.com/d5lqgghlwlcalpy2zw0l7tqukr0u75bd',
+      defaultRef: 'main',
+    };
+
+    let debugLogs = [];
+
+    function log(msg, data = null) {
+      const ts = new Date().toISOString().slice(11, 19);
+      console.log(`[SFR ${ts}]`, msg, data || '');
+      debugLogs.push(data ? `[${ts}] ${msg}: ${JSON.stringify(data).slice(0, 200)}` : `[${ts}] ${msg}`);
     }
 
-    function renderLoading(msg) {
-      render(`<div class="status loading"><div class="spinner"></div>${msg}</div>`);
-    }
+    // ============================================
+    // CONTEXT DETECTION - Multiple strategies
+    // ============================================
 
-    function renderSuccess(data) {
-      const seoIssues = data.seo?.issues?.length > 0 
-        ? data.seo.issues.join(', ') 
-        : 'None';
-      const seoClass = data.seo?.issues?.length > 0 ? 'warning' : '';
-      const blocks = data.blocks?.blockNames?.join(', ') || 'None';
-      const date = new Date(data.reviewSubmissionDate).toLocaleString();
-
-      render(`
-        <div class="status success">✓ Review submitted successfully!</div>
-        <div class="info-row">
-          <span class="info-label">Title</span>
-          <span class="info-value">${data.title || 'N/A'}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Name</span>
-          <span class="info-value">${data.name || 'N/A'}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Submitter</span>
-          <span class="info-value">${data.submittedBy || 'unknown'}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Submission Date</span>
-          <span class="info-value">${date}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">SEO Issues</span>
-          <span class="info-value ${seoClass}">${seoIssues}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Blocks</span>
-          <span class="info-value">${data.blocks?.totalBlocks || 0} (${blocks})</span>
-        </div>
-        <button class="btn" onclick="location.reload()">Send Again</button>
-      `);
-    }
-
-    function renderError(msg) {
-      render(`
-        <div class="status error">❌ ${msg}</div>
-        <button class="btn" onclick="location.reload()">Try Again</button>
-      `);
-    }
-
-    // Analysis functions
-    function analyzeContent(doc) {
-      const main = doc.querySelector('main') || doc.body;
-      const text = main?.textContent || '';
-      const cleanText = text.replace(/\s+/g, ' ').trim();
-      const words = cleanText.split(/\s+/).filter(w => w.length > 0);
+    function getContextFromURLParams() {
+      const params = new URLSearchParams(window.location.search);
       return {
-        wordCount: words.length,
-        characterCount: cleanText.length,
-        readingTimeMinutes: Math.ceil(words.length / 200),
+        ref: params.get('ref') || '',
+        site: params.get('site') || params.get('repo') || '',
+        org: params.get('org') || params.get('owner') || '',
+        path: params.get('path') || '',
       };
     }
 
-    function analyzeHeadings(doc) {
-      const counts = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
-      const issues = [];
-      doc.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
-        counts[h.tagName.toLowerCase()] += 1;
-      });
-      if (counts.h1 === 0) issues.push('Missing H1');
-      else if (counts.h1 > 1) issues.push('Multiple H1s');
-      return { counts, issues };
-    }
-
-    function analyzeBlocks(doc) {
-      const blocks = [];
-      const blockSummary = {};
-      doc.querySelectorAll('main > div').forEach((section, i) => {
-        section.querySelectorAll(':scope > div[class]').forEach(block => {
-          const name = block.classList[0] || 'unknown';
-          blocks.push({ name, section: i + 1 });
-          blockSummary[name] = (blockSummary[name] || 0) + 1;
-        });
-      });
-      return {
-        totalBlocks: blocks.length,
-        blocks,
-        blockNames: [...new Set(blocks.map(b => b.name))],
-        blockSummary,
-      };
-    }
-
-    function analyzeSEO(doc) {
-      const issues = [];
-      const title = doc.querySelector('title')?.textContent?.trim() || '';
-      if (!title) issues.push('Missing title');
-      else if (title.length < 30) issues.push('Title too short');
-      else if (title.length > 60) issues.push('Title too long');
-
-      const desc = doc.querySelector('meta[name="description"]')?.content?.trim() || '';
-      if (!desc) issues.push('Missing meta description');
-      else if (desc.length < 120) issues.push('Description too short');
-
-      if (!doc.documentElement.lang) issues.push('Missing lang attribute');
-
-      return {
-        title: { content: title, length: title.length },
-        metaDescription: { content: desc, length: desc.length },
-        issues,
-      };
-    }
-
-    function analyzeAccessibility(doc) {
-      const images = doc.querySelectorAll('img');
-      let withAlt = 0, withoutAlt = 0;
-      images.forEach(img => {
-        if (img.getAttribute('alt') !== null) withAlt++;
-        else withoutAlt++;
-      });
-      return {
-        images: { total: images.length, withAlt, withoutAlt },
-        score: images.length > 0 ? Math.round((withAlt / images.length) * 100) : 100,
-      };
-    }
-
-    async function buildPayload(context) {
-      const { owner, repo, ref = 'main' } = context;
-      // Clean the path - remove leading slashes, .html extension, and any URL parts
-      let path = context.path || 'index';
-      path = path.replace(/^\/+/, '').replace(/\.html$/, '');
-      
-      const name = path.split('/').filter(Boolean).pop() || 'index';
-      const baseHost = `${ref}--${repo}--${owner}`;
-      const previewUrl = `https://${baseHost}.aem.page/${path}`;
-      const liveUrl = `https://${baseHost}.aem.live/${path}`;
-
-      console.log('[Send For Review] Building payload for:', { owner, repo, path, ref });
-      console.log('[Send For Review] Preview URL:', previewUrl);
-
-      let doc = document;
-      try {
-        const resp = await fetch(previewUrl);
-        if (resp.ok) {
-          const html = await resp.text();
-          doc = new DOMParser().parseFromString(html, 'text/html');
-          console.log('[Send For Review] Fetched preview page successfully');
-        } else {
-          console.warn('[Send For Review] Preview fetch failed:', resp.status);
-        }
-      } catch (e) {
-        console.warn('[Send For Review] Could not fetch preview:', e.message);
-      }
-
-      const pageTitle = doc.querySelector('title')?.textContent?.trim() 
-        || doc.querySelector('h1')?.textContent?.trim() 
-        || name;
-
-      return {
-        title: pageTitle,
-        name,
-        path: `/${path}`,
-        url: liveUrl,
-        previewUrl,
-        liveUrl,
-        reviewSubmissionDate: new Date().toISOString(),
-        submittedBy: window.adobeIMS?.getUserProfile?.()?.email || 'unknown',
-        host: `${baseHost}.aem.page`,
-        env: 'page',
-        org: owner,
-        site: repo,
-        ref,
-        source: 'DA.live Library',
-        contentMetrics: analyzeContent(doc),
-        headingStructure: analyzeHeadings(doc),
-        blocks: analyzeBlocks(doc),
-        seo: analyzeSEO(doc),
-        accessibility: analyzeAccessibility(doc),
-        notes: '',
-      };
-    }
-
-    async function sendForReview(context) {
-      renderLoading('Analyzing page...');
+    function getContextFromReferrer() {
+      const referrer = document.referrer;
+      if (!referrer) return null;
 
       try {
-        const payload = await buildPayload(context);
-        renderLoading('Sending to webhook...');
-
-        const resp = await fetch(DEFAULT_WEBHOOK, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (!resp.ok) throw new Error(`Webhook failed: ${resp.status}`);
-
-        console.log('[Send For Review] Success:', payload);
-        renderSuccess(payload);
-      } catch (error) {
-        console.error('[Send For Review] Error:', error);
-        renderError(error.message);
-      }
-    }
-
-    // Parse context from DA.live URL hash
-    function getContextFromUrl() {
-      // The DA.live URL format is: da.live/edit#/owner/repo/path
-      // We need to get this from the parent/top window since we're in an iframe
-      
-      let daUrl = '';
-      
-      // Try to get the DA.live URL from various sources
-      try {
-        // First try top window (most reliable)
-        daUrl = window.top.location.href;
-        console.log('[Send For Review] Got URL from top:', daUrl);
-      } catch (e) {
-        try {
-          // Try parent window
-          daUrl = window.parent.location.href;
-          console.log('[Send For Review] Got URL from parent:', daUrl);
-        } catch (e2) {
-          // Use referrer as last resort
-          daUrl = document.referrer;
-          console.log('[Send For Review] Got URL from referrer:', daUrl);
-        }
-      }
-
-      console.log('[Send For Review] Parsing DA URL:', daUrl);
-
-      // Parse DA.live edit URL: da.live/edit#/owner/repo/path
-      // Example: https://da.live/edit#/shravanbac/sb/index
-      const hashIndex = daUrl.indexOf('#/');
-      if (hashIndex !== -1) {
-        const hashPart = daUrl.substring(hashIndex + 2); // Remove '#/'
-        const parts = hashPart.split('/');
+        const url = new URL(referrer);
         
-        if (parts.length >= 2) {
-          const owner = parts[0];
-          const repo = parts[1];
-          const path = parts.slice(2).join('/') || 'index';
-          
-          console.log('[Send For Review] Parsed context:', { owner, repo, path });
-          
+        // DA.live: da.live/edit#/org/repo/path
+        const daMatch = url.href.match(/da\.live\/edit#\/([^\/]+)\/([^\/]+)\/?(.*)?/);
+        if (daMatch) {
+          log('Found DA.live referrer', { org: daMatch[1], site: daMatch[2], path: daMatch[3] });
           return {
-            owner: owner,
-            repo: repo,
-            path: path,
+            org: daMatch[1],
+            site: daMatch[2],
+            path: daMatch[3] || 'index',
             ref: 'main',
+            source: 'da.live-referrer'
           };
         }
+
+        // AEM: ref--site--org.aem.page
+        const aemMatch = url.host.match(/^([^-]+)--([^-]+)--([^.]+)\.aem\.(page|live)$/);
+        if (aemMatch) {
+          log('Found AEM referrer', { ref: aemMatch[1], site: aemMatch[2], org: aemMatch[3] });
+          return {
+            ref: aemMatch[1],
+            site: aemMatch[2],
+            org: aemMatch[3],
+            path: url.pathname.replace(/^\//, '') || 'index',
+            source: 'aem-referrer'
+          };
+        }
+      } catch (e) {
+        log('Referrer parse error', e.message);
+      }
+      return null;
+    }
+
+    async function getContextFromDASDK() {
+      try {
+        log('Loading DA SDK...');
+        const DA_SDK = await import('https://da.live/nx/utils/sdk.js');
+        const sdk = await DA_SDK.default;
+        
+        log('DA SDK result', { 
+          hasContext: !!sdk?.context,
+          context: sdk?.context,
+        });
+
+        if (sdk?.context) {
+          return {
+            org: sdk.context.org || sdk.context.owner || '',
+            site: sdk.context.repo || '',
+            ref: sdk.context.ref || 'main',
+            path: sdk.context.path || 'index',
+            email: sdk.context.email || '',
+            source: 'da-sdk'
+          };
+        }
+      } catch (e) {
+        log('DA SDK error', e.message);
+      }
+      return null;
+    }
+
+    async function getFullContext() {
+      log('Getting full context...');
+      
+      const urlParams = getContextFromURLParams();
+      log('URL params', urlParams);
+      
+      const referrerCtx = getContextFromReferrer();
+      log('Referrer context', referrerCtx);
+      
+      const sdkCtx = await getContextFromDASDK();
+      log('SDK context', sdkCtx);
+
+      // Merge contexts with priority: SDK > Referrer > URL params
+      const ctx = {
+        ref: sdkCtx?.ref || referrerCtx?.ref || urlParams.ref || CONFIG.defaultRef,
+        site: sdkCtx?.site || referrerCtx?.site || urlParams.site || '',
+        org: sdkCtx?.org || referrerCtx?.org || urlParams.org || '',
+        path: sdkCtx?.path || referrerCtx?.path || urlParams.path || 'index',
+        email: sdkCtx?.email || '',
+        source: sdkCtx?.source || referrerCtx?.source || 'url-params',
+      };
+
+      // CRITICAL: Clean path - don't analyze the plugin itself!
+      if (ctx.path.includes('tools/send-for-review') || ctx.path.includes('send-for-review-library')) {
+        log('Path was plugin itself, resetting to index');
+        ctx.path = 'index';
+      }
+      ctx.path = ctx.path.replace(/^\/+/, '').replace(/\.html?$/, '') || 'index';
+
+      // Build URLs
+      ctx.previewHost = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.page`;
+      ctx.liveHost = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.live`;
+      ctx.previewUrl = `https://${ctx.previewHost}/${ctx.path}`;
+      ctx.liveUrl = `https://${ctx.liveHost}/${ctx.path}`;
+      ctx.plainUrl = `https://${ctx.previewHost}/${ctx.path}.plain.html`;
+
+      log('Final context', ctx);
+      return ctx;
+    }
+
+    // ============================================
+    // CONTENT FETCHING - EDS Best Practice
+    // ============================================
+
+    async function fetchContent(ctx) {
+      log('Fetching content...');
+
+      // Strategy 1: .plain.html (CORS-friendly, EDS standard)
+      try {
+        log('Trying .plain.html', ctx.plainUrl);
+        const res = await fetch(ctx.plainUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const html = await res.text();
+          log('.plain.html success', { length: html.length });
+          return { html, source: 'plain.html', isPlain: true };
+        }
+        log('.plain.html failed', res.status);
+      } catch (e) {
+        log('.plain.html error', e.message);
       }
 
-      // Fallback: Try parsing from aem.page/aem.live URL in referrer
-      const aemMatch = daUrl.match(/([^-]+)--([^-]+)--([^.]+)\.aem\.(page|live)\/?(.*)?$/);
-      if (aemMatch) {
-        return {
-          ref: aemMatch[1],
-          repo: aemMatch[2],
-          owner: aemMatch[3],
-          path: aemMatch[5] || 'index',
-        };
+      // Strategy 2: Full page
+      try {
+        log('Trying full page', ctx.previewUrl);
+        const res = await fetch(ctx.previewUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const html = await res.text();
+          log('Full page success', { length: html.length });
+          return { html, source: 'full-page', isPlain: false };
+        }
+        log('Full page failed', res.status);
+      } catch (e) {
+        log('Full page error', e.message);
       }
 
       return null;
     }
 
-    // Initialize with DA SDK
-    (async function init() {
-      try {
-        let context = null;
+    // ============================================
+    // CONTENT ANALYSIS
+    // ============================================
 
-        // First try to parse from URL (most reliable for DA.live)
-        context = getContextFromUrl();
-        console.log('[Send For Review] Context from URL:', context);
+    function analyzeDocument(doc, isPlain) {
+      const contentRoot = isPlain ? doc.body : (doc.querySelector('main') || doc.body);
+      const text = contentRoot?.textContent || '';
 
-        // If URL parsing failed, try DA SDK
-        if (!context || !context.owner || !context.repo) {
-          try {
-            const sdk = await DA_SDK;
-            console.log('[Send For Review] DA SDK response:', sdk);
-            if (sdk.context && sdk.context.owner && sdk.context.repo) {
-              context = {
-                owner: sdk.context.owner,
-                repo: sdk.context.repo,
-                path: sdk.context.path || 'index',
-                ref: sdk.context.ref || 'main',
-              };
-            }
-          } catch (sdkError) {
-            console.warn('[Send For Review] SDK error:', sdkError);
+      // Content Metrics
+      const words = text.split(/\s+/).filter(w => w.length > 0);
+      const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 5);
+      const contentMetrics = {
+        wordCount: words.length,
+        characterCount: text.length,
+        characterCountNoSpaces: text.replace(/\s/g, '').length,
+        sentenceCount: sentences.length,
+        paragraphCount: contentRoot.querySelectorAll('p').length,
+        avgWordsPerSentence: sentences.length > 0 ? Math.round(words.length / sentences.length) : 0,
+        readingTimeMinutes: Math.max(1, Math.ceil(words.length / 200)),
+      };
+
+      // Heading Structure
+      const headings = [];
+      const counts = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
+      const issues = [];
+
+      contentRoot.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => {
+        const level = parseInt(h.tagName[1]);
+        counts[`h${level}`]++;
+        headings.push({
+          level,
+          tag: h.tagName.toLowerCase(),
+          text: (h.textContent?.trim() || '').slice(0, 80),
+        });
+      });
+
+      if (counts.h1 === 0) issues.push('Missing H1 heading');
+      if (counts.h1 > 1) issues.push(`Multiple H1 headings (${counts.h1})`);
+
+      const headingStructure = { headings, counts, total: headings.length, issues, isValid: issues.length === 0 };
+
+      // EDS Blocks
+      const blocks = [];
+      const blockSummary = {};
+      const sections = isPlain ? splitPlainSections(contentRoot) : Array.from(contentRoot.querySelectorAll(':scope > div'));
+
+      sections.forEach((section, idx) => {
+        section.querySelectorAll(':scope > div[class]').forEach(block => {
+          const classes = Array.from(block.classList);
+          const name = classes[0] || 'default-content';
+          if (name !== 'block' && name !== 'section' && !name.endsWith('-wrapper')) {
+            blocks.push({ name, section: idx + 1, variants: classes.slice(1) });
+            blockSummary[name] = (blockSummary[name] || 0) + 1;
           }
+        });
+      });
+
+      const blockNames = [...new Set(blocks.map(b => b.name))].filter(n => n !== 'default-content');
+      const blocksData = { totalBlocks: blocks.length, totalSections: sections.length, blocks, blockNames, blockSummary };
+
+      // SEO
+      const title = doc.querySelector('title')?.textContent?.trim() || '';
+      const metaDesc = doc.querySelector('meta[name="description"]')?.content?.trim() || '';
+      const seoIssues = [];
+      
+      if (!isPlain) {
+        if (!title) seoIssues.push('Missing title');
+        else if (title.length < 30) seoIssues.push('Title too short (<30)');
+        else if (title.length > 60) seoIssues.push('Title too long (>60)');
+        if (!metaDesc) seoIssues.push('Missing meta description');
+        else if (metaDesc.length < 120) seoIssues.push('Meta desc short (<120)');
+      }
+
+      const seo = {
+        title: { content: title, length: title.length },
+        metaDescription: { content: metaDesc, length: metaDesc.length },
+        canonical: doc.querySelector('link[rel="canonical"]')?.href || '',
+        lang: doc.documentElement?.lang || '',
+        issues: seoIssues,
+      };
+
+      // Open Graph
+      const og = {};
+      const twitter = {};
+      doc.querySelectorAll('meta[property^="og:"]').forEach(meta => {
+        og[meta.getAttribute('property').replace('og:', '')] = meta.content;
+      });
+      doc.querySelectorAll('meta[name^="twitter:"]').forEach(meta => {
+        twitter[meta.getAttribute('name').replace('twitter:', '')] = meta.content;
+      });
+      const ogIssues = [];
+      if (!og.title) ogIssues.push('Missing og:title');
+      if (!og.description) ogIssues.push('Missing og:description');
+      if (!og.image) ogIssues.push('Missing og:image');
+      const openGraph = { openGraph: og, twitter, issues: ogIssues, hasSocialMeta: Object.keys(og).length > 0 };
+
+      // Accessibility
+      const images = contentRoot.querySelectorAll('img');
+      const withAlt = Array.from(images).filter(img => img.alt?.trim()).length;
+      const withoutAlt = images.length - withAlt;
+      const accIssues = [];
+      if (withoutAlt > 0) accIssues.push(`${withoutAlt} images missing alt`);
+      const accessibility = {
+        images: { total: images.length, withAlt, withoutAlt, altCoveragePercent: images.length > 0 ? Math.round((withAlt / images.length) * 100) : 100 },
+        issues: accIssues,
+        score: Math.max(0, 100 - (accIssues.length * 20)),
+      };
+
+      // Links
+      const links = contentRoot.querySelectorAll('a[href]');
+      const externalLinks = Array.from(links).filter(a => a.href?.startsWith('http') && !a.href?.includes(location.host));
+      const linksData = {
+        total: links.length,
+        internal: links.length - externalLinks.length,
+        external: externalLinks.length,
+        externalLinks: externalLinks.slice(0, 5).map(a => ({ href: a.href, text: a.textContent?.trim().slice(0, 50) })),
+      };
+
+      // Interactive Elements
+      const interactiveElements = {
+        forms: contentRoot.querySelectorAll('form').length,
+        buttons: contentRoot.querySelectorAll('button, a.button, .button').length,
+        inputs: contentRoot.querySelectorAll('input, textarea, select').length,
+        videos: contentRoot.querySelectorAll('video, iframe[src*="youtube"], iframe[src*="vimeo"]').length,
+        iframes: contentRoot.querySelectorAll('iframe').length,
+      };
+
+      // Analytics
+      const analytics = {
+        timestamp: new Date().toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        screen: { width: screen.width, height: screen.height },
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+      };
+
+      return { contentMetrics, headingStructure, blocks: blocksData, seo, openGraph, accessibility, links: linksData, interactiveElements, analytics };
+    }
+
+    function splitPlainSections(root) {
+      const sections = [];
+      let currentSection = document.createElement('div');
+      
+      Array.from(root.childNodes).forEach(node => {
+        if (node.nodeName === 'HR') {
+          if (currentSection.childNodes.length > 0) sections.push(currentSection);
+          currentSection = document.createElement('div');
+        } else {
+          currentSection.appendChild(node.cloneNode(true));
         }
+      });
+      
+      if (currentSection.childNodes.length > 0) sections.push(currentSection);
+      return sections.length > 0 ? sections : [root];
+    }
 
-        console.log('[Send For Review] Final context:', context);
+    // ============================================
+    // PAYLOAD & WEBHOOK
+    // ============================================
 
-        if (!context || !context.owner || !context.repo) {
-          renderError('Could not determine page context. Make sure you have a page open in the editor.');
+    function buildPayload(ctx, analysis) {
+      const name = ctx.path.split('/').pop() || 'index';
+      
+      // Get title from analysis or path
+      let title = analysis.seo?.title?.content || name;
+      if ((title === name || title === 'Send For Review') && analysis.headingStructure?.headings?.length > 0) {
+        const h1 = analysis.headingStructure.headings.find(h => h.level === 1);
+        if (h1) title = h1.text;
+      }
+
+      return {
+        title,
+        name,
+        path: '/' + ctx.path,
+        url: ctx.liveUrl,
+        previewUrl: ctx.previewUrl,
+        liveUrl: ctx.liveUrl,
+        reviewSubmissionDate: new Date().toISOString(),
+        submittedBy: ctx.email || 'unknown',
+        host: ctx.previewHost,
+        env: 'page',
+        org: ctx.org,
+        site: ctx.site,
+        ref: ctx.ref,
+        source: 'DA.live Library',
+        contentMetrics: analysis.contentMetrics,
+        headingStructure: analysis.headingStructure,
+        blocks: analysis.blocks,
+        seo: analysis.seo,
+        openGraph: analysis.openGraph,
+        accessibility: analysis.accessibility,
+        links: analysis.links,
+        interactiveElements: analysis.interactiveElements,
+        analytics: analysis.analytics,
+        notes: '',
+      };
+    }
+
+    async function postToWebhook(payload) {
+      log('Sending to webhook...');
+      const res = await fetch(CONFIG.webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      log('Webhook success');
+      return true;
+    }
+
+    // ============================================
+    // UI
+    // ============================================
+
+    function render(state) {
+      const details = document.getElementById('details');
+      let content = '';
+
+      if (state.status === 'loading') {
+        content = `
+          <div class="status-content loading">
+            <div class="status-message">
+              <div class="spinner"></div>
+              <span>${state.message}</span>
+            </div>
+          </div>`;
+      } 
+      else if (state.status === 'success') {
+        const p = state.payload;
+        const seoIssues = p.seo?.issues?.length > 0 ? p.seo.issues.join(', ') : 'None';
+        const seoClass = p.seo?.issues?.length > 0 ? 'warning' : 'success';
+        const blocks = p.blocks?.blockNames?.length > 0 ? p.blocks.blockNames.join(', ') : 'None';
+        const date = new Date(p.reviewSubmissionDate).toLocaleString();
+
+        content = `
+          <div class="status-content success">
+            <div class="status-header">Review Submitted!</div>
+            <div class="status-details">
+              <div class="info-row">
+                <span class="info-label">Title</span>
+                <span class="info-value">${p.title}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Name</span>
+                <span class="info-value">${p.name}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Submitter</span>
+                <span class="info-value">${p.submittedBy}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Submission Date</span>
+                <span class="info-value">${date}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">SEO Issues</span>
+                <span class="info-value ${seoClass}">${seoIssues}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Blocks</span>
+                <span class="info-value">${p.blocks?.totalBlocks || 0} (${blocks})</span>
+              </div>
+              <p style="margin-top:12px"><a href="${p.previewUrl}" target="_blank">Open Preview →</a></p>
+            </div>
+            <button class="btn btn-primary" id="btn-again">Send Again</button>
+          </div>`;
+      }
+      else if (state.status === 'error') {
+        content = `
+          <div class="status-content error">
+            <div class="status-header">${state.message}</div>
+            <button class="btn btn-primary" id="btn-retry">Retry</button>
+            <div class="toggle-debug" id="toggle-debug">Show debug info</div>
+            <div class="debug-panel" id="debug-panel" style="display:none;"></div>
+          </div>`;
+      }
+
+      details.innerHTML = `
+        <div class="review-card">
+          <div class="review-header">
+            <span class="logo">SB</span>
+            <span class="title">Tech Labs</span>
+          </div>
+          <div class="review-section-title">Send For Review</div>
+          ${content}
+        </div>`;
+
+      // Events
+      document.getElementById('btn-again')?.addEventListener('click', startReview);
+      document.getElementById('btn-retry')?.addEventListener('click', startReview);
+      document.getElementById('toggle-debug')?.addEventListener('click', () => {
+        const panel = document.getElementById('debug-panel');
+        if (panel) {
+          panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+          panel.textContent = debugLogs.join('\n');
+        }
+      });
+    }
+
+    // ============================================
+    // MAIN FLOW
+    // ============================================
+
+    async function startReview() {
+      render({ status: 'loading', message: 'Analyzing page…' });
+
+      try {
+        const ctx = await getFullContext();
+
+        if (!ctx.org || !ctx.site) {
+          render({ status: 'error', message: 'Could not determine page context. Make sure you have a page open.' });
           return;
         }
 
-        await sendForReview(context);
-      } catch (error) {
-        console.error('[Send For Review] Init Error:', error);
-        renderError('Failed to initialize: ' + error.message);
+        const content = await fetchContent(ctx);
+
+        if (!content?.html) {
+          render({ status: 'error', message: 'Could not fetch page content.' });
+          return;
+        }
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(content.html, 'text/html');
+        const analysis = analyzeDocument(doc, content.isPlain);
+
+        render({ status: 'loading', message: 'Sending to webhook…' });
+        const payload = buildPayload(ctx, analysis);
+
+        log('Payload', payload);
+        await postToWebhook(payload);
+
+        render({ status: 'success', payload });
+      } catch (err) {
+        log('Error', err.message);
+        render({ status: 'error', message: `Error: ${err.message}` });
       }
-    })();
+    }
+
+    // Initialize
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', startReview);
+    } else {
+      startReview();
+    }
   </script>
 </body>
 </html>
