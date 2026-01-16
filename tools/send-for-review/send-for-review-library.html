@@ -273,6 +273,22 @@
       margin-top: 0;
       flex: 1;
     }
+
+    .source-badge {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #e0e7ff;
+      color: #3730a3;
+      font-weight: 500;
+      margin-left: 8px;
+    }
+
+    .source-badge.unpreviewed {
+      background: #fef3c7;
+      color: #92400e;
+    }
   </style>
 </head>
 <body>
@@ -310,6 +326,7 @@
     let debugLogs = [];
     let currentContext = null;
     let currentAnalysis = null;
+    let contentSource = null;
 
     function log(msg, data = null) {
       const ts = new Date().toISOString().slice(11, 19);
@@ -600,6 +617,7 @@
       ctx.previewUrl = `https://${ctx.previewHost}/${ctx.path}`;
       ctx.liveUrl = `https://${ctx.liveHost}/${ctx.path}`;
       ctx.plainUrl = `https://${ctx.previewHost}/${ctx.path}.plain.html`;
+      ctx.daSourceUrl = `https://admin.da.live/source/${ctx.org}/${ctx.site}/${ctx.path}.html`;
 
       log('Final context', ctx);
       return ctx;
@@ -612,7 +630,7 @@
     async function fetchContent(ctx) {
       log('Fetching content...');
 
-      // Strategy 1: Full page (has all metadata and proper block structure)
+      // Strategy 1: Full page from AEM preview (has all metadata and proper block structure)
       try {
         log('Trying full page', ctx.previewUrl);
         const res = await fetch(ctx.previewUrl, { cache: 'no-store' });
@@ -626,7 +644,7 @@
         log('Full page error', e.message);
       }
 
-      // Strategy 2: .plain.html (CORS-friendly fallback)
+      // Strategy 2: .plain.html from AEM preview (CORS-friendly fallback)
       try {
         log('Trying .plain.html', ctx.plainUrl);
         const res = await fetch(ctx.plainUrl, { cache: 'no-store' });
@@ -638,6 +656,21 @@
         log('.plain.html failed', res.status);
       } catch (e) {
         log('.plain.html error', e.message);
+      }
+
+      // Strategy 3: DA.live source (works for unpreviewed pages)
+      try {
+        const daSourceUrl = ctx.daSourceUrl;
+        log('Trying DA source', daSourceUrl);
+        const res = await fetch(daSourceUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const html = await res.text();
+          log('DA source success', { length: html.length });
+          return { html, source: 'da-source', isPlain: true };
+        }
+        log('DA source failed', res.status);
+      } catch (e) {
+        log('DA source error', e.message);
       }
 
       return null;
@@ -920,6 +953,7 @@
         site: ctx.site,
         ref: ctx.ref,
         source: 'DA.live Library',
+        contentSource: contentSource || 'unknown',
 
         // Analysis Results
         contentMetrics: analysis.contentMetrics,
@@ -961,6 +995,13 @@
       }
     }
 
+    function getSourceBadge(source) {
+      if (source === 'da-source') {
+        return '<span class="source-badge unpreviewed">Unpreviewed</span>';
+      }
+      return '';
+    }
+
     function render(state) {
       const details = document.getElementById('details');
       let content = '';
@@ -972,48 +1013,6 @@
               <div class="spinner"></div>
               <span>${state.message}</span>
             </div>
-          </div>`;
-      }
-      else if (state.status === 'email-required') {
-        const analysis = state.analysis;
-        const seoIssues = analysis?.seo?.issues?.length > 0 ? analysis.seo.issues.join(', ') : 'None';
-        const seoClass = analysis?.seo?.issues?.length > 0 ? 'warning' : 'success';
-        const blocks = analysis?.blocks?.blockNames?.length > 0 ? analysis.blocks.blockNames.join(', ') : 'None';
-
-        content = `
-          <div class="status-content">
-            <div class="status-header" style="color: var(--color-primary);">Enter Your Email</div>
-            <p style="font-size: 13px; color: var(--color-text-light); margin-bottom: 12px;">
-              Your email identifies you as the submitter.
-            </p>
-            <div class="status-details">
-              <div class="info-row">
-                <span class="info-label">Title</span>
-                <span class="info-value">${state.title}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Name</span>
-                <span class="info-value">${state.name}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">SEO Issues</span>
-                <span class="info-value ${seoClass}">${seoIssues}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Blocks</span>
-                <span class="info-value">${analysis?.blocks?.totalBlocks || 0} (${blocks})</span>
-              </div>
-            </div>
-            <div class="notes-section">
-              <label class="notes-label">Email Address *</label>
-              <input type="email" class="notes-input" id="email-input" placeholder="you@example.com" style="min-height: auto; padding: 10px 12px;">
-              <p style="font-size: 11px; color: var(--color-text-light); margin-top: 4px;">Your email will be saved for future submissions.</p>
-            </div>
-            <div class="notes-section">
-              <label class="notes-label">Notes (Optional)</label>
-              <textarea class="notes-input" id="notes-input" placeholder="Enter any additional notes for this review submission..."></textarea>
-            </div>
-            <button class="btn btn-primary" id="btn-submit-with-email">Submit for Review</button>
           </div>`;
       }
       else if (state.status === 'in-review') {
@@ -1056,10 +1055,11 @@
         const seoIssues = analysis.seo?.issues?.length > 0 ? analysis.seo.issues.join(', ') : 'None';
         const seoClass = analysis.seo?.issues?.length > 0 ? 'warning' : 'success';
         const blocks = analysis.blocks?.blockNames?.length > 0 ? analysis.blocks.blockNames.join(', ') : 'None';
+        const sourceBadge = getSourceBadge(contentSource);
 
         content = `
           <div class="status-content">
-            <div class="status-header" style="color: var(--color-primary);">Ready to Submit</div>
+            <div class="status-header" style="color: var(--color-primary);">Ready to Submit ${sourceBadge}</div>
             <div class="status-details">
               <div class="info-row">
                 <span class="info-label">Title</span>
@@ -1077,6 +1077,12 @@
                 <span class="info-label">Blocks</span>
                 <span class="info-value">${analysis.blocks?.totalBlocks || 0} (${blocks})</span>
               </div>
+              ${contentSource === 'da-source' ? `
+              <div class="info-row">
+                <span class="info-label">Note</span>
+                <span class="info-value warning">Page not yet previewed in AEM</span>
+              </div>
+              ` : ''}
             </div>
             <div class="notes-section">
               <label class="notes-label">Notes (Optional)</label>
@@ -1165,15 +1171,6 @@
 
       document.getElementById('btn-submit')?.addEventListener('click', handleSubmit);
 
-      document.getElementById('btn-submit-with-email')?.addEventListener('click', handleSubmitWithEmail);
-
-      // Allow Enter key to submit email
-      document.getElementById('email-input')?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          handleSubmitWithEmail();
-        }
-      });
-
       document.getElementById('toggle-debug')?.addEventListener('click', () => {
         const panel = document.getElementById('debug-panel');
         if (panel) {
@@ -1187,51 +1184,6 @@
     // MAIN FLOW
     // ============================================
 
-    function isValidEmail(email) {
-      return email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    }
-
-    async function handleSubmitWithEmail() {
-      const emailInput = document.getElementById('email-input');
-      const notesInput = document.getElementById('notes-input');
-      const email = emailInput?.value?.trim() || '';
-      const notes = notesInput?.value?.trim() || '';
-
-      if (!isValidEmail(email)) {
-        emailInput.style.borderColor = 'var(--color-error)';
-        emailInput.focus();
-        return;
-      }
-
-      // Save email for future use
-      saveEmail(email);
-      currentContext.email = email;
-
-      render({ status: 'loading', message: 'Submitting review…' });
-
-      try {
-        const payload = buildPayload(currentContext, currentAnalysis, email, notes);
-        log('Payload', payload);
-
-        await postToWebhook(payload);
-
-        // Save review state
-        setReviewState(currentContext.path, {
-          title: payload.title,
-          name: payload.name,
-          submittedBy: email,
-          previewUrl: payload.previewUrl,
-          liveUrl: payload.liveUrl,
-          notes: notes,
-        });
-
-        render({ status: 'success', payload });
-      } catch (err) {
-        log('Submit error', err.message);
-        render({ status: 'error', message: `Failed to submit: ${err.message}` });
-      }
-    }
-
     function showReadyState() {
       const name = currentContext.path.split('/').pop() || 'index';
       let title = currentAnalysis.seo?.title?.content || name;
@@ -1240,20 +1192,6 @@
         if (h1) title = h1.text;
       }
 
-      const email = currentContext.email;
-      
-      // If no email, show email input form
-      if (!email || !isValidEmail(email)) {
-        render({
-          status: 'email-required',
-          title,
-          name,
-          analysis: currentAnalysis,
-        });
-        return;
-      }
-
-      // Email exists, show ready state with just notes
       render({
         status: 'ready',
         title,
@@ -1324,9 +1262,13 @@
         const content = await fetchContent(currentContext);
 
         if (!content?.html) {
-          render({ status: 'error', message: 'Could not fetch page content.' });
+          render({ status: 'error', message: 'Could not fetch page content. Make sure the page exists.' });
           return;
         }
+
+        // Track which source we got content from
+        contentSource = content.source;
+        log('Content source', contentSource);
 
         const parser = new DOMParser();
         const doc = parser.parseFromString(content.html, 'text/html');
