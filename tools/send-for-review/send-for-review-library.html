@@ -109,6 +109,19 @@
       font-size: 14px;
     }
 
+    .status-content.in-review .status-header { color: var(--color-warning); }
+    .status-content.in-review .status-header::before {
+      content: "⏳";
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: #fef3c7;
+      border-radius: 50%;
+      font-size: 14px;
+    }
+
     .status-content.loading { text-align: center; padding: 24px 18px; }
 
     .status-message {
@@ -166,6 +179,8 @@
 
     .btn-primary { background: var(--color-primary); color: #fff; }
     .btn-primary:hover { background: var(--color-primary-dark); }
+    .btn-secondary { background: #fff; color: var(--color-primary); border: 1px solid var(--color-primary); }
+    .btn-secondary:hover { background: #f0f7ff; }
 
     .info-row {
       display: flex;
@@ -180,14 +195,44 @@
     .info-value.warning { color: var(--color-warning); }
     .info-value.success { color: var(--color-success); }
 
-    .tag {
-      display: inline-block;
-      background: #fef3c7;
-      color: #92400e;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      margin: 2px;
+    .notes-section {
+      margin-top: 12px;
+    }
+
+    .notes-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-text);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .notes-input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 13px;
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+    }
+
+    .notes-input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.1);
+    }
+
+    .notes-display {
+      background: #fff;
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--color-text);
+      font-style: italic;
+      margin-top: 4px;
     }
 
     .debug-panel {
@@ -209,6 +254,24 @@
       cursor: pointer;
       margin-top: 12px;
       text-decoration: underline;
+    }
+
+    .in-review-message {
+      font-size: 13px;
+      color: var(--color-text-light);
+      margin-bottom: 12px;
+      line-height: 1.6;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .btn-group .btn {
+      margin-top: 0;
+      flex: 1;
     }
   </style>
 </head>
@@ -232,17 +295,21 @@
   <script type="module">
     // ============================================
     // SEND FOR REVIEW - DA.live Library Plugin
-    // Based on SB Tech Labs v4.3
+    // Complete version with all features
     // ============================================
 
     console.log('[SFR Library] Starting...');
 
     const CONFIG = {
       webhookUrl: 'https://hook.us2.make.com/d5lqgghlwlcalpy2zw0l7tqukr0u75bd',
+      storageKeyPrefix: 'sfr_review_',
+      emailStorageKey: 'sfr_user_email',
       defaultRef: 'main',
     };
 
     let debugLogs = [];
+    let currentContext = null;
+    let currentAnalysis = null;
 
     function log(msg, data = null) {
       const ts = new Date().toISOString().slice(11, 19);
@@ -251,7 +318,84 @@
     }
 
     // ============================================
-    // CONTEXT DETECTION - Multiple strategies
+    // STORAGE - Email & Review State
+    // ============================================
+
+    function getStoredEmail() {
+      // Try sessionStorage first, then localStorage
+      let email = sessionStorage.getItem(CONFIG.emailStorageKey);
+      if (!email) {
+        email = localStorage.getItem(CONFIG.emailStorageKey);
+      }
+      // Also check for Adobe IMS profile in localStorage
+      if (!email) {
+        try {
+          const imsProfile = localStorage.getItem('adobeid_ims_profile');
+          if (imsProfile) {
+            const parsed = JSON.parse(imsProfile);
+            email = parsed?.email;
+          }
+        } catch (e) {}
+      }
+      // Check sessionStorage for DA user
+      if (!email) {
+        try {
+          const daUser = sessionStorage.getItem('da_user');
+          if (daUser) {
+            const parsed = JSON.parse(daUser);
+            email = parsed?.email;
+          }
+        } catch (e) {}
+      }
+      log('Stored email', email);
+      return email && email.includes('@') ? email : null;
+    }
+
+    function saveEmail(email) {
+      sessionStorage.setItem(CONFIG.emailStorageKey, email);
+      localStorage.setItem(CONFIG.emailStorageKey, email);
+    }
+
+    function getReviewStateKey(path) {
+      return `${CONFIG.storageKeyPrefix}${(path || 'index').replace(/[\/\\]/g, '_')}`;
+    }
+
+    function getReviewState(path) {
+      try {
+        const data = localStorage.getItem(getReviewStateKey(path));
+        return data ? JSON.parse(data) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function setReviewState(path, state) {
+      const key = getReviewStateKey(path);
+      localStorage.setItem(key, JSON.stringify({
+        ...state,
+        timestamp: new Date().toISOString(),
+      }));
+    }
+
+    function clearReviewState(path) {
+      localStorage.removeItem(getReviewStateKey(path));
+    }
+
+    async function checkIfPublished(liveUrl, reviewTimestamp) {
+      try {
+        const res = await fetch(liveUrl, { method: 'HEAD', cache: 'no-store' });
+        const lastMod = res.headers.get('Last-Modified');
+        if (lastMod && reviewTimestamp) {
+          return new Date(lastMod) > new Date(reviewTimestamp);
+        }
+        return res.ok;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // ============================================
+    // CONTEXT DETECTION
     // ============================================
 
     function getContextFromURLParams() {
@@ -347,7 +491,7 @@
         site: sdkCtx?.site || referrerCtx?.site || urlParams.site || '',
         org: sdkCtx?.org || referrerCtx?.org || urlParams.org || '',
         path: sdkCtx?.path || referrerCtx?.path || urlParams.path || 'index',
-        email: sdkCtx?.email || '',
+        email: sdkCtx?.email || getStoredEmail() || '',
         source: sdkCtx?.source || referrerCtx?.source || 'url-params',
       };
 
@@ -370,27 +514,13 @@
     }
 
     // ============================================
-    // CONTENT FETCHING - EDS Best Practice
+    // CONTENT FETCHING
     // ============================================
 
     async function fetchContent(ctx) {
       log('Fetching content...');
 
-      // Strategy 1: .plain.html (CORS-friendly, EDS standard)
-      try {
-        log('Trying .plain.html', ctx.plainUrl);
-        const res = await fetch(ctx.plainUrl, { cache: 'no-store' });
-        if (res.ok) {
-          const html = await res.text();
-          log('.plain.html success', { length: html.length });
-          return { html, source: 'plain.html', isPlain: true };
-        }
-        log('.plain.html failed', res.status);
-      } catch (e) {
-        log('.plain.html error', e.message);
-      }
-
-      // Strategy 2: Full page
+      // Strategy 1: Full page (has all metadata and proper block structure)
       try {
         log('Trying full page', ctx.previewUrl);
         const res = await fetch(ctx.previewUrl, { cache: 'no-store' });
@@ -402,6 +532,20 @@
         log('Full page failed', res.status);
       } catch (e) {
         log('Full page error', e.message);
+      }
+
+      // Strategy 2: .plain.html (CORS-friendly fallback)
+      try {
+        log('Trying .plain.html', ctx.plainUrl);
+        const res = await fetch(ctx.plainUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const html = await res.text();
+          log('.plain.html success', { length: html.length });
+          return { html, source: 'plain.html', isPlain: true };
+        }
+        log('.plain.html failed', res.status);
+      } catch (e) {
+        log('.plain.html error', e.message);
       }
 
       return null;
@@ -431,7 +575,7 @@
       // Heading Structure
       const headings = [];
       const counts = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
-      const issues = [];
+      const headingIssues = [];
 
       contentRoot.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => {
         const level = parseInt(h.tagName[1]);
@@ -440,51 +584,90 @@
           level,
           tag: h.tagName.toLowerCase(),
           text: (h.textContent?.trim() || '').slice(0, 80),
+          id: h.id || '',
         });
       });
 
-      if (counts.h1 === 0) issues.push('Missing H1 heading');
-      if (counts.h1 > 1) issues.push(`Multiple H1 headings (${counts.h1})`);
+      if (counts.h1 === 0) headingIssues.push('Missing H1 heading');
+      else if (counts.h1 > 1) headingIssues.push(`Multiple H1 headings found (${counts.h1})`);
 
-      const headingStructure = { headings, counts, total: headings.length, issues, isValid: issues.length === 0 };
+      // Check for skipped levels
+      let lastLevel = 0;
+      headings.forEach(h => {
+        if (h.level > lastLevel + 1 && lastLevel > 0) {
+          headingIssues.push(`Skipped heading level: H${lastLevel} to H${h.level}`);
+        }
+        lastLevel = h.level;
+      });
 
-      // EDS Blocks
+      const headingStructure = { headings, counts, total: headings.length, issues: headingIssues, isValid: headingIssues.length === 0 };
+
+      // EDS Blocks Analysis
       const blocks = [];
       const blockSummary = {};
-      const sections = isPlain ? splitPlainSections(contentRoot) : Array.from(contentRoot.querySelectorAll(':scope > div'));
+      const sections = contentRoot.querySelectorAll(':scope > div');
 
-      sections.forEach((section, idx) => {
+      sections.forEach((section, sectionIndex) => {
         section.querySelectorAll(':scope > div[class]').forEach(block => {
           const classes = Array.from(block.classList);
-          const name = classes[0] || 'default-content';
-          if (name !== 'block' && name !== 'section' && !name.endsWith('-wrapper')) {
-            blocks.push({ name, section: idx + 1, variants: classes.slice(1) });
-            blockSummary[name] = (blockSummary[name] || 0) + 1;
-          }
+          const name = classes[0] || 'unknown';
+          const variants = classes.slice(1).filter(c => c !== 'block');
+
+          // Get content preview
+          const textContent = block.textContent?.trim() || '';
+          const contentPreview = textContent.length > 100 ? `${textContent.substring(0, 100)}...` : textContent;
+
+          blocks.push({
+            name,
+            section: sectionIndex + 1,
+            variants,
+            contentPreview,
+          });
+
+          blockSummary[name] = (blockSummary[name] || 0) + 1;
         });
       });
 
-      const blockNames = [...new Set(blocks.map(b => b.name))].filter(n => n !== 'default-content');
-      const blocksData = { totalBlocks: blocks.length, totalSections: sections.length, blocks, blockNames, blockSummary };
+      const blockNames = [...new Set(blocks.map(b => b.name))];
+      const blocksData = {
+        totalBlocks: blocks.length,
+        totalSections: sections.length,
+        blocks,
+        blockNames,
+        blockSummary,
+      };
 
-      // SEO
-      const title = doc.querySelector('title')?.textContent?.trim() || '';
-      const metaDesc = doc.querySelector('meta[name="description"]')?.content?.trim() || '';
+      // SEO Analysis
+      const titleEl = doc.querySelector('title');
+      const title = titleEl?.textContent?.trim() || '';
+      const titleLength = title.length;
+
+      const metaDesc = doc.querySelector('meta[name="description"]');
+      const description = metaDesc?.content?.trim() || '';
+      const descLength = description.length;
+
+      const canonical = doc.querySelector('link[rel="canonical"]')?.href || '';
+      const robots = doc.querySelector('meta[name="robots"]')?.content || '';
+      const lang = doc.documentElement?.lang || '';
+
       const seoIssues = [];
-      
-      if (!isPlain) {
-        if (!title) seoIssues.push('Missing title');
-        else if (title.length < 30) seoIssues.push('Title too short (<30)');
-        else if (title.length > 60) seoIssues.push('Title too long (>60)');
-        if (!metaDesc) seoIssues.push('Missing meta description');
-        else if (metaDesc.length < 120) seoIssues.push('Meta desc short (<120)');
-      }
+      if (!title) seoIssues.push('Missing page title');
+      else if (titleLength < 30) seoIssues.push('Title too short (< 30 chars)');
+      else if (titleLength > 60) seoIssues.push('Title too long (> 60 chars)');
+
+      if (!description) seoIssues.push('Missing meta description');
+      else if (descLength < 120) seoIssues.push('Meta description too short (< 120 chars)');
+      else if (descLength > 160) seoIssues.push('Meta description too long (> 160 chars)');
+
+      if (!canonical) seoIssues.push('Missing canonical URL');
+      if (!lang) seoIssues.push('Missing lang attribute');
 
       const seo = {
-        title: { content: title, length: title.length },
-        metaDescription: { content: metaDesc, length: metaDesc.length },
-        canonical: doc.querySelector('link[rel="canonical"]')?.href || '',
-        lang: doc.documentElement?.lang || '',
+        title: { content: title, length: titleLength },
+        metaDescription: { content: description, length: descLength },
+        canonical,
+        robots,
+        lang,
         issues: seoIssues,
       };
 
@@ -492,45 +675,94 @@
       const og = {};
       const twitter = {};
       doc.querySelectorAll('meta[property^="og:"]').forEach(meta => {
-        og[meta.getAttribute('property').replace('og:', '')] = meta.content;
+        const prop = meta.getAttribute('property').replace('og:', '');
+        og[prop] = meta.content;
       });
       doc.querySelectorAll('meta[name^="twitter:"]').forEach(meta => {
-        twitter[meta.getAttribute('name').replace('twitter:', '')] = meta.content;
+        const name = meta.getAttribute('name').replace('twitter:', '');
+        twitter[name] = meta.content;
       });
+
       const ogIssues = [];
       if (!og.title) ogIssues.push('Missing og:title');
       if (!og.description) ogIssues.push('Missing og:description');
       if (!og.image) ogIssues.push('Missing og:image');
-      const openGraph = { openGraph: og, twitter, issues: ogIssues, hasSocialMeta: Object.keys(og).length > 0 };
+
+      const hasSocialMeta = Object.keys(og).length > 0 || Object.keys(twitter).length > 0;
+      let ogScore = 0;
+      if (hasSocialMeta) ogScore = ogIssues.length === 0 ? 100 : 50;
+
+      const openGraph = { openGraph: og, twitter, issues: ogIssues, score: ogScore, hasSocialMeta };
 
       // Accessibility
       const images = contentRoot.querySelectorAll('img');
-      const withAlt = Array.from(images).filter(img => img.alt?.trim()).length;
-      const withoutAlt = images.length - withAlt;
+      let withAlt = 0;
+      let withoutAlt = 0;
+      let decorative = 0;
+
+      images.forEach(img => {
+        const alt = img.getAttribute('alt');
+        if (alt === '') decorative++;
+        else if (alt) withAlt++;
+        else withoutAlt++;
+      });
+
+      const totalImages = images.length;
+      const altCoveragePercent = totalImages > 0 ? Math.round(((withAlt + decorative) / totalImages) * 100) : 100;
+
       const accIssues = [];
-      if (withoutAlt > 0) accIssues.push(`${withoutAlt} images missing alt`);
+      if (withoutAlt > 0) accIssues.push(`${withoutAlt} images missing alt text`);
+      if (altCoveragePercent < 100) accIssues.push('Not all images have alt attributes');
+
       const accessibility = {
-        images: { total: images.length, withAlt, withoutAlt, altCoveragePercent: images.length > 0 ? Math.round((withAlt / images.length) * 100) : 100 },
+        images: { total: totalImages, withAlt, withoutAlt, decorative, altCoveragePercent },
+        aria: {
+          labels: contentRoot.querySelectorAll('[aria-label]').length,
+          roles: contentRoot.querySelectorAll('[role]').length,
+        },
         issues: accIssues,
-        score: Math.max(0, 100 - (accIssues.length * 20)),
+        score: altCoveragePercent,
       };
 
       // Links
       const links = contentRoot.querySelectorAll('a[href]');
-      const externalLinks = Array.from(links).filter(a => a.href?.startsWith('http') && !a.href?.includes(location.host));
+      let internal = 0;
+      let external = 0;
+      let mailto = 0;
+      let tel = 0;
+      const externalLinks = [];
+
+      links.forEach(link => {
+        const href = link.getAttribute('href');
+        if (!href) return;
+        if (href.startsWith('mailto:')) mailto++;
+        else if (href.startsWith('tel:')) tel++;
+        else if (href.startsWith('http') && !href.includes(window.location.host)) {
+          external++;
+          externalLinks.push({ href, text: link.textContent?.trim() || '' });
+        } else {
+          internal++;
+        }
+      });
+
+      const buttons = contentRoot.querySelectorAll('button, a.button, .button').length;
+
       const linksData = {
         total: links.length,
-        internal: links.length - externalLinks.length,
-        external: externalLinks.length,
-        externalLinks: externalLinks.slice(0, 5).map(a => ({ href: a.href, text: a.textContent?.trim().slice(0, 50) })),
+        internal,
+        external,
+        buttons,
+        mailto,
+        tel,
+        externalLinks,
       };
 
       // Interactive Elements
       const interactiveElements = {
         forms: contentRoot.querySelectorAll('form').length,
-        buttons: contentRoot.querySelectorAll('button, a.button, .button').length,
+        buttons: contentRoot.querySelectorAll('button').length,
         inputs: contentRoot.querySelectorAll('input, textarea, select').length,
-        videos: contentRoot.querySelectorAll('video, iframe[src*="youtube"], iframe[src*="vimeo"]').length,
+        videos: contentRoot.querySelectorAll('video').length,
         iframes: contentRoot.querySelectorAll('iframe').length,
       };
 
@@ -540,45 +772,46 @@
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         userAgent: navigator.userAgent,
         language: navigator.language,
-        screen: { width: screen.width, height: screen.height },
-        viewport: { width: window.innerWidth, height: window.innerHeight },
+        screen: {
+          width: window.screen?.width || 0,
+          height: window.screen?.height || 0,
+          colorDepth: window.screen?.colorDepth || 0,
+        },
+        viewport: {
+          width: window.innerWidth,
+          height: window.innerHeight,
+        },
       };
 
-      return { contentMetrics, headingStructure, blocks: blocksData, seo, openGraph, accessibility, links: linksData, interactiveElements, analytics };
-    }
-
-    function splitPlainSections(root) {
-      const sections = [];
-      let currentSection = document.createElement('div');
-      
-      Array.from(root.childNodes).forEach(node => {
-        if (node.nodeName === 'HR') {
-          if (currentSection.childNodes.length > 0) sections.push(currentSection);
-          currentSection = document.createElement('div');
-        } else {
-          currentSection.appendChild(node.cloneNode(true));
-        }
-      });
-      
-      if (currentSection.childNodes.length > 0) sections.push(currentSection);
-      return sections.length > 0 ? sections : [root];
+      return {
+        contentMetrics,
+        headingStructure,
+        blocks: blocksData,
+        seo,
+        openGraph,
+        accessibility,
+        links: linksData,
+        interactiveElements,
+        analytics,
+      };
     }
 
     // ============================================
     // PAYLOAD & WEBHOOK
     // ============================================
 
-    function buildPayload(ctx, analysis) {
+    function buildPayload(ctx, analysis, email, notes = '') {
       const name = ctx.path.split('/').pop() || 'index';
       
-      // Get title from analysis or path
+      // Get title from SEO or headings
       let title = analysis.seo?.title?.content || name;
-      if ((title === name || title === 'Send For Review') && analysis.headingStructure?.headings?.length > 0) {
-        const h1 = analysis.headingStructure.headings.find(h => h.level === 1);
+      if (!title || title === name) {
+        const h1 = analysis.headingStructure?.headings?.find(h => h.level === 1);
         if (h1) title = h1.text;
       }
 
       return {
+        // Basic Info
         title,
         name,
         path: '/' + ctx.path,
@@ -586,13 +819,17 @@
         previewUrl: ctx.previewUrl,
         liveUrl: ctx.liveUrl,
         reviewSubmissionDate: new Date().toISOString(),
-        submittedBy: ctx.email || 'unknown',
+        submittedBy: email || 'unknown',
+
+        // Environment
         host: ctx.previewHost,
         env: 'page',
         org: ctx.org,
         site: ctx.site,
         ref: ctx.ref,
         source: 'DA.live Library',
+
+        // Analysis Results
         contentMetrics: analysis.contentMetrics,
         headingStructure: analysis.headingStructure,
         blocks: analysis.blocks,
@@ -602,7 +839,9 @@
         links: analysis.links,
         interactiveElements: analysis.interactiveElements,
         analytics: analysis.analytics,
-        notes: '',
+
+        // Notes
+        notes: notes || '',
       };
     }
 
@@ -622,6 +861,14 @@
     // UI
     // ============================================
 
+    function formatDate(iso) {
+      try {
+        return new Date(iso).toLocaleString();
+      } catch (e) {
+        return iso;
+      }
+    }
+
     function render(state) {
       const details = document.getElementById('details');
       let content = '';
@@ -634,17 +881,86 @@
               <span>${state.message}</span>
             </div>
           </div>`;
-      } 
+      }
+      else if (state.status === 'in-review') {
+        const data = state.data;
+        content = `
+          <div class="status-content in-review">
+            <div class="status-header">Page Already In Review</div>
+            <p class="in-review-message">
+              This page has been sent for review. If you want to send it again with updates, please click "Send Again".
+            </p>
+            <div class="status-details">
+              <div class="info-row">
+                <span class="info-label">Title</span>
+                <span class="info-value">${data.title || data.name}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Submitted By</span>
+                <span class="info-value">${data.submittedBy}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Submitted On</span>
+                <span class="info-value">${formatDate(data.timestamp)}</span>
+              </div>
+              ${data.notes ? `
+              <div class="info-row" style="flex-direction: column; align-items: flex-start;">
+                <span class="info-label">Notes</span>
+                <div class="notes-display">${data.notes}</div>
+              </div>
+              ` : ''}
+              <p style="margin-top:12px"><a href="${data.previewUrl}" target="_blank">Open Preview →</a></p>
+            </div>
+            <div class="btn-group">
+              <button class="btn btn-secondary" id="btn-view-preview">View Preview</button>
+              <button class="btn btn-primary" id="btn-send-again">Send Again</button>
+            </div>
+          </div>`;
+      }
+      else if (state.status === 'ready') {
+        const analysis = state.analysis;
+        const seoIssues = analysis.seo?.issues?.length > 0 ? analysis.seo.issues.join(', ') : 'None';
+        const seoClass = analysis.seo?.issues?.length > 0 ? 'warning' : 'success';
+        const blocks = analysis.blocks?.blockNames?.length > 0 ? analysis.blocks.blockNames.join(', ') : 'None';
+
+        content = `
+          <div class="status-content">
+            <div class="status-header" style="color: var(--color-primary);">Ready to Submit</div>
+            <div class="status-details">
+              <div class="info-row">
+                <span class="info-label">Title</span>
+                <span class="info-value">${state.title}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Name</span>
+                <span class="info-value">${state.name}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">SEO Issues</span>
+                <span class="info-value ${seoClass}">${seoIssues}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Blocks</span>
+                <span class="info-value">${analysis.blocks?.totalBlocks || 0} (${blocks})</span>
+              </div>
+            </div>
+            <div class="notes-section">
+              <label class="notes-label">Notes (Optional)</label>
+              <textarea class="notes-input" id="notes-input" placeholder="Enter any additional notes for this review submission..."></textarea>
+            </div>
+            <button class="btn btn-primary" id="btn-submit">Submit for Review</button>
+          </div>`;
+      }
       else if (state.status === 'success') {
         const p = state.payload;
         const seoIssues = p.seo?.issues?.length > 0 ? p.seo.issues.join(', ') : 'None';
         const seoClass = p.seo?.issues?.length > 0 ? 'warning' : 'success';
         const blocks = p.blocks?.blockNames?.length > 0 ? p.blocks.blockNames.join(', ') : 'None';
-        const date = new Date(p.reviewSubmissionDate).toLocaleString();
+        const date = formatDate(p.reviewSubmissionDate);
 
         content = `
           <div class="status-content success">
-            <div class="status-header">Review Submitted!</div>
+            <div class="status-header">Review Submitted Successfully!</div>
             <div class="status-details">
               <div class="info-row">
                 <span class="info-label">Title</span>
@@ -670,9 +986,15 @@
                 <span class="info-label">Blocks</span>
                 <span class="info-value">${p.blocks?.totalBlocks || 0} (${blocks})</span>
               </div>
+              ${p.notes ? `
+              <div class="info-row" style="flex-direction: column; align-items: flex-start;">
+                <span class="info-label">Notes</span>
+                <div class="notes-display">${p.notes}</div>
+              </div>
+              ` : ''}
               <p style="margin-top:12px"><a href="${p.previewUrl}" target="_blank">Open Preview →</a></p>
             </div>
-            <button class="btn btn-primary" id="btn-again">Send Again</button>
+            <button class="btn btn-primary" id="btn-send-again">Send Again</button>
           </div>`;
       }
       else if (state.status === 'error') {
@@ -695,9 +1017,20 @@
           ${content}
         </div>`;
 
-      // Events
-      document.getElementById('btn-again')?.addEventListener('click', startReview);
-      document.getElementById('btn-retry')?.addEventListener('click', startReview);
+      // Event Listeners
+      document.getElementById('btn-send-again')?.addEventListener('click', () => {
+        clearReviewState(currentContext?.path);
+        showReadyState();
+      });
+
+      document.getElementById('btn-view-preview')?.addEventListener('click', () => {
+        window.open(currentContext?.previewUrl, '_blank');
+      });
+
+      document.getElementById('btn-retry')?.addEventListener('click', init);
+
+      document.getElementById('btn-submit')?.addEventListener('click', handleSubmit);
+
       document.getElementById('toggle-debug')?.addEventListener('click', () => {
         const panel = document.getElementById('debug-panel');
         if (panel) {
@@ -711,18 +1044,82 @@
     // MAIN FLOW
     // ============================================
 
-    async function startReview() {
-      render({ status: 'loading', message: 'Analyzing page…' });
+    function showReadyState() {
+      const name = currentContext.path.split('/').pop() || 'index';
+      let title = currentAnalysis.seo?.title?.content || name;
+      if (!title || title === name) {
+        const h1 = currentAnalysis.headingStructure?.headings?.find(h => h.level === 1);
+        if (h1) title = h1.text;
+      }
+
+      render({
+        status: 'ready',
+        title,
+        name,
+        analysis: currentAnalysis,
+      });
+    }
+
+    async function handleSubmit() {
+      const notesInput = document.getElementById('notes-input');
+      const notes = notesInput?.value?.trim() || '';
+      const email = currentContext.email || getStoredEmail() || 'unknown';
+
+      render({ status: 'loading', message: 'Submitting review…' });
 
       try {
-        const ctx = await getFullContext();
+        const payload = buildPayload(currentContext, currentAnalysis, email, notes);
+        log('Payload', payload);
 
-        if (!ctx.org || !ctx.site) {
+        await postToWebhook(payload);
+
+        // Save review state
+        setReviewState(currentContext.path, {
+          title: payload.title,
+          name: payload.name,
+          submittedBy: email,
+          previewUrl: payload.previewUrl,
+          liveUrl: payload.liveUrl,
+          notes: notes,
+        });
+
+        render({ status: 'success', payload });
+      } catch (err) {
+        log('Submit error', err.message);
+        render({ status: 'error', message: `Failed to submit: ${err.message}` });
+      }
+    }
+
+    async function init() {
+      render({ status: 'loading', message: 'Initializing…' });
+
+      try {
+        currentContext = await getFullContext();
+
+        if (!currentContext.org || !currentContext.site) {
           render({ status: 'error', message: 'Could not determine page context. Make sure you have a page open.' });
           return;
         }
 
-        const content = await fetchContent(ctx);
+        // Check if already in review
+        const reviewState = getReviewState(currentContext.path);
+        if (reviewState) {
+          log('Found existing review state', reviewState);
+          
+          // Check if page has been published since review
+          const published = await checkIfPublished(reviewState.liveUrl, reviewState.timestamp);
+          if (published) {
+            log('Page was published, clearing review state');
+            clearReviewState(currentContext.path);
+          } else {
+            render({ status: 'in-review', data: reviewState });
+            return;
+          }
+        }
+
+        // Fetch and analyze content
+        render({ status: 'loading', message: 'Analyzing page…' });
+        const content = await fetchContent(currentContext);
 
         if (!content?.html) {
           render({ status: 'error', message: 'Could not fetch page content.' });
@@ -731,26 +1128,24 @@
 
         const parser = new DOMParser();
         const doc = parser.parseFromString(content.html, 'text/html');
-        const analysis = analyzeDocument(doc, content.isPlain);
+        currentAnalysis = analyzeDocument(doc, content.isPlain);
 
-        render({ status: 'loading', message: 'Sending to webhook…' });
-        const payload = buildPayload(ctx, analysis);
+        log('Analysis complete', { source: content.source, blocks: currentAnalysis.blocks?.totalBlocks });
 
-        log('Payload', payload);
-        await postToWebhook(payload);
+        // Show ready state with notes input
+        showReadyState();
 
-        render({ status: 'success', payload });
       } catch (err) {
-        log('Error', err.message);
+        log('Init error', err.message);
         render({ status: 'error', message: `Error: ${err.message}` });
       }
     }
 
-    // Initialize
+    // Start
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', startReview);
+      document.addEventListener('DOMContentLoaded', init);
     } else {
-      startReview();
+      init();
     }
   </script>
 </body>
