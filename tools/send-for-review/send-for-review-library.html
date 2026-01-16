@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Send For Review</title>
+  <script src="https://da.live/nx/utils/sdk.js" type="module"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #004b87;
+      margin-bottom: 16px;
+      font-size: 18px;
+    }
+    .status {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+    .status.loading { background: #e3f2fd; color: #1565c0; }
+    .status.success { background: #d4edda; color: #155724; }
+    .status.error { background: #f8d7da; color: #721c24; }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: #666; }
+    .info-value { color: #333; font-weight: 500; text-align: right; max-width: 60%; word-break: break-word; }
+    .info-value.warning { color: #856404; }
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      background: #0077c8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 16px;
+      width: 100%;
+    }
+    .btn:hover { background: #005a9e; }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid #e0e0e0;
+      border-top-color: #0077c8;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h2>📤 Send For Review</h2>
+      <div id="content">
+        <div class="status loading">
+          <div class="spinner"></div>
+          Initializing...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import DA_SDK from 'https://da.live/nx/utils/sdk.js';
+
+    const DEFAULT_WEBHOOK = 'https://hook.us2.make.com/d5lqgghlwlcalpy2zw0l7tqukr0u75bd';
+    const contentEl = document.getElementById('content');
+
+    function render(html) {
+      contentEl.innerHTML = html;
+    }
+
+    function renderLoading(msg) {
+      render(`<div class="status loading"><div class="spinner"></div>${msg}</div>`);
+    }
+
+    function renderSuccess(data) {
+      const seoIssues = data.seo?.issues?.length > 0 
+        ? data.seo.issues.join(', ') 
+        : 'None';
+      const seoClass = data.seo?.issues?.length > 0 ? 'warning' : '';
+      const blocks = data.blocks?.blockNames?.join(', ') || 'None';
+      const date = new Date(data.reviewSubmissionDate).toLocaleString();
+
+      render(`
+        <div class="status success">✓ Review submitted successfully!</div>
+        <div class="info-row">
+          <span class="info-label">Title</span>
+          <span class="info-value">${data.title || 'N/A'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Name</span>
+          <span class="info-value">${data.name || 'N/A'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Submitter</span>
+          <span class="info-value">${data.submittedBy || 'unknown'}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Submission Date</span>
+          <span class="info-value">${date}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">SEO Issues</span>
+          <span class="info-value ${seoClass}">${seoIssues}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Blocks</span>
+          <span class="info-value">${data.blocks?.totalBlocks || 0} (${blocks})</span>
+        </div>
+        <button class="btn" onclick="location.reload()">Send Again</button>
+      `);
+    }
+
+    function renderError(msg) {
+      render(`
+        <div class="status error">❌ ${msg}</div>
+        <button class="btn" onclick="location.reload()">Try Again</button>
+      `);
+    }
+
+    // Analysis functions
+    function analyzeContent(doc) {
+      const main = doc.querySelector('main') || doc.body;
+      const text = main?.textContent || '';
+      const cleanText = text.replace(/\s+/g, ' ').trim();
+      const words = cleanText.split(/\s+/).filter(w => w.length > 0);
+      return {
+        wordCount: words.length,
+        characterCount: cleanText.length,
+        readingTimeMinutes: Math.ceil(words.length / 200),
+      };
+    }
+
+    function analyzeHeadings(doc) {
+      const counts = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
+      const issues = [];
+      doc.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
+        counts[h.tagName.toLowerCase()] += 1;
+      });
+      if (counts.h1 === 0) issues.push('Missing H1');
+      else if (counts.h1 > 1) issues.push('Multiple H1s');
+      return { counts, issues };
+    }
+
+    function analyzeBlocks(doc) {
+      const blocks = [];
+      const blockSummary = {};
+      doc.querySelectorAll('main > div').forEach((section, i) => {
+        section.querySelectorAll(':scope > div[class]').forEach(block => {
+          const name = block.classList[0] || 'unknown';
+          blocks.push({ name, section: i + 1 });
+          blockSummary[name] = (blockSummary[name] || 0) + 1;
+        });
+      });
+      return {
+        totalBlocks: blocks.length,
+        blocks,
+        blockNames: [...new Set(blocks.map(b => b.name))],
+        blockSummary,
+      };
+    }
+
+    function analyzeSEO(doc) {
+      const issues = [];
+      const title = doc.querySelector('title')?.textContent?.trim() || '';
+      if (!title) issues.push('Missing title');
+      else if (title.length < 30) issues.push('Title too short');
+      else if (title.length > 60) issues.push('Title too long');
+
+      const desc = doc.querySelector('meta[name="description"]')?.content?.trim() || '';
+      if (!desc) issues.push('Missing meta description');
+      else if (desc.length < 120) issues.push('Description too short');
+
+      if (!doc.documentElement.lang) issues.push('Missing lang attribute');
+
+      return {
+        title: { content: title, length: title.length },
+        metaDescription: { content: desc, length: desc.length },
+        issues,
+      };
+    }
+
+    function analyzeAccessibility(doc) {
+      const images = doc.querySelectorAll('img');
+      let withAlt = 0, withoutAlt = 0;
+      images.forEach(img => {
+        if (img.getAttribute('alt') !== null) withAlt++;
+        else withoutAlt++;
+      });
+      return {
+        images: { total: images.length, withAlt, withoutAlt },
+        score: images.length > 0 ? Math.round((withAlt / images.length) * 100) : 100,
+      };
+    }
+
+    async function buildPayload(context) {
+      const { owner, repo, path = 'index', ref = 'main' } = context;
+      const cleanPath = (path || 'index').replace(/^\/+/, '').replace(/\.html$/, '');
+      const name = cleanPath.split('/').filter(Boolean).pop() || 'index';
+      const baseHost = `${ref}--${repo}--${owner}`;
+      const previewUrl = `https://${baseHost}.aem.page/${cleanPath}`;
+      const liveUrl = `https://${baseHost}.aem.live/${cleanPath}`;
+
+      let doc = document;
+      try {
+        const resp = await fetch(previewUrl);
+        if (resp.ok) {
+          const html = await resp.text();
+          doc = new DOMParser().parseFromString(html, 'text/html');
+        }
+      } catch (e) {
+        console.warn('Could not fetch preview, using current doc');
+      }
+
+      const pageTitle = doc.querySelector('title')?.textContent?.trim() 
+        || doc.querySelector('h1')?.textContent?.trim() 
+        || name;
+
+      return {
+        title: pageTitle,
+        name,
+        path: `/${cleanPath}`,
+        url: liveUrl,
+        previewUrl,
+        liveUrl,
+        reviewSubmissionDate: new Date().toISOString(),
+        submittedBy: window.adobeIMS?.getUserProfile?.()?.email || 'unknown',
+        host: `${baseHost}.aem.page`,
+        env: 'page',
+        org: owner,
+        site: repo,
+        ref,
+        source: 'DA.live Library',
+        contentMetrics: analyzeContent(doc),
+        headingStructure: analyzeHeadings(doc),
+        blocks: analyzeBlocks(doc),
+        seo: analyzeSEO(doc),
+        accessibility: analyzeAccessibility(doc),
+        notes: '',
+      };
+    }
+
+    async function sendForReview(context) {
+      renderLoading('Analyzing page...');
+
+      try {
+        const payload = await buildPayload(context);
+        renderLoading('Sending to webhook...');
+
+        const resp = await fetch(DEFAULT_WEBHOOK, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!resp.ok) throw new Error(`Webhook failed: ${resp.status}`);
+
+        console.log('[Send For Review] Success:', payload);
+        renderSuccess(payload);
+      } catch (error) {
+        console.error('[Send For Review] Error:', error);
+        renderError(error.message);
+      }
+    }
+
+    // Initialize with DA SDK
+    (async function init() {
+      try {
+        const { context } = await DA_SDK;
+        console.log('[Send For Review] DA Context:', context);
+
+        if (!context.owner || !context.repo) {
+          renderError('Could not determine page context');
+          return;
+        }
+
+        await sendForReview(context);
+      } catch (error) {
+        console.error('[Send For Review] SDK Error:', error);
+        renderError('Failed to initialize: ' + error.message);
+      }
+    })();
+  </script>
+</body>
+</html>
