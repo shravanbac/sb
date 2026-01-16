@@ -7,7 +7,7 @@
       "environments": ["edit", "preview"],
       "url": "https://main--sb--shravanbac.aem.page/tools/send-for-review/send-for-review.html",
       "isPalette": true,
-      "paletteRect": "top: 50px; left: 50%; width: 450px; height: 500px; transform: translateX(-50%);"
+      "paletteRect": "top: 60px; right: 20px; width: 450px; height: 520px;"
     }
   ]
 }

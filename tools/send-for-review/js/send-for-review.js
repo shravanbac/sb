@@ -430,6 +430,84 @@ function collectAnalytics() {
 }
 
 // ============================================
+// USER IDENTIFICATION
+// ============================================
+
+/**
+ * Get submitter email from various sources
+ * Tries multiple methods to identify the current user
+ */
+function getSubmitterEmail() {
+  // Method 1: Adobe IMS (if available)
+  if (window.adobeIMS?.getUserProfile) {
+    try {
+      const profile = window.adobeIMS.getUserProfile();
+      if (profile?.email) return profile.email;
+    } catch (e) {
+      // IMS not available or error
+    }
+  }
+
+  // Method 2: Check adobeIMS async profile
+  if (window.adobeIMS?.getProfile) {
+    try {
+      const profile = window.adobeIMS.getProfile();
+      if (profile?.email) return profile.email;
+    } catch (e) {
+      // Profile not available
+    }
+  }
+
+  // Method 3: Check for DA.live user context
+  if (window.da?.user?.email) {
+    return window.da.user.email;
+  }
+
+  // Method 4: Check parent window (when in iframe)
+  try {
+    if (window.parent !== window) {
+      if (window.parent.adobeIMS?.getUserProfile) {
+        const profile = window.parent.adobeIMS.getUserProfile();
+        if (profile?.email) return profile.email;
+      }
+      if (window.parent.da?.user?.email) {
+        return window.parent.da.user.email;
+      }
+    }
+  } catch (e) {
+    // Cross-origin access blocked
+  }
+
+  // Method 5: Check top window
+  try {
+    if (window.top !== window) {
+      if (window.top.adobeIMS?.getUserProfile) {
+        const profile = window.top.adobeIMS.getUserProfile();
+        if (profile?.email) return profile.email;
+      }
+      if (window.top.da?.user?.email) {
+        return window.top.da.user.email;
+      }
+    }
+  } catch (e) {
+    // Cross-origin access blocked
+  }
+
+  // Method 6: Check localStorage for cached user
+  try {
+    const cachedUser = localStorage.getItem('adobeid_ims_profile');
+    if (cachedUser) {
+      const parsed = JSON.parse(cachedUser);
+      if (parsed?.email) return parsed.email;
+    }
+  } catch (e) {
+    // localStorage not available or parse error
+  }
+
+  return 'unknown';
+}
+
+// ============================================
 // PAYLOAD BUILDING
 // ============================================
 
@@ -489,7 +567,7 @@ async function buildPayload(ctx, notes = '') {
     previewUrl,
     liveUrl,
     reviewSubmissionDate: isoNow,
-    submittedBy: window.adobeIMS?.getUserProfile?.()?.email || 'unknown',
+    submittedBy: getSubmitterEmail(),
 
     // Environment
     host,
@@ -675,6 +753,9 @@ renderCard = function renderCardFn({ status, message, payload }) {
         ` : '';
     const sendAgainBtn = inProgress ? '<button id="resubmit-btn" class="btn btn-primary">Send Again</button>' : '';
 
+    // Format submission date
+    const submissionDate = new Date(payload.reviewSubmissionDate).toLocaleString();
+
     content = `
       <p class="status-message success">${message}</p>
       <div class="page-details">
@@ -683,24 +764,24 @@ renderCard = function renderCardFn({ status, message, payload }) {
           <span class="value">${payload.title}</span>
         </div>
         <div class="detail-row">
-          <span class="label">Path:</span>
-          <span class="value">${payload.path}</span>
+          <span class="label">Name:</span>
+          <span class="value">${payload.name}</span>
         </div>
         <div class="detail-row">
-          <span class="label">Words:</span>
-          <span class="value">${payload.contentMetrics.wordCount}</span>
+          <span class="label">Submitter:</span>
+          <span class="value">${payload.submittedBy}</span>
         </div>
         <div class="detail-row">
-          <span class="label">Blocks:</span>
-          <span class="value">${payload.blocks.totalBlocks} (${payload.blocks.blockNames.join(', ')})</span>
+          <span class="label">Submission Date:</span>
+          <span class="value">${submissionDate}</span>
         </div>
         <div class="detail-row">
           <span class="label">SEO Issues:</span>
           <span class="value ${seoClass}">${seoText}</span>
         </div>
         <div class="detail-row">
-          <span class="label">Accessibility:</span>
-          <span class="value">${payload.accessibility.score}%</span>
+          <span class="label">Blocks:</span>
+          <span class="value">${payload.blocks.totalBlocks} (${payload.blocks.blockNames.join(', ')})</span>
         </div>
         ${notesHtml}
       </div>
