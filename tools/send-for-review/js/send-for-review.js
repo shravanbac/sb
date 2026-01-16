@@ -1,258 +1,798 @@
+/**
+ * Send For Review - Comprehensive Page Analysis Tool
+ * Generic solution for Sidekick and Library submissions
+ */
+
+/* eslint-disable no-console */
+
+// ============================================
+// CONFIGURATION
+// ============================================
 const DEFAULT_WEBHOOK = 'https://hook.us2.make.com/d5lqgghlwlcalpy2zw0l7tqukr0u75bd';
-const RETRY_INTERVAL_MS = 500;
 
-/** Resolve webhook URL */
-function resolveWebhook() {
-  return (
-    window.SFR_WEBHOOK_URL
-    || document.querySelector('meta[name="sfr:webhook"]')?.content?.trim()
-    || DEFAULT_WEBHOOK
-  );
+/**
+ * Get webhook URL from config hierarchy
+ * Priority: window.SFR_WEBHOOK_URL > meta tag > DEFAULT_WEBHOOK
+ */
+function getWebhookUrl() {
+  // Check window variable first
+  if (window.SFR_WEBHOOK_URL) {
+    return window.SFR_WEBHOOK_URL;
+  }
+
+  // Check meta tag
+  const metaWebhook = document.querySelector('meta[name="sfr:webhook"]');
+  if (metaWebhook?.content) {
+    return metaWebhook.content;
+  }
+
+  // Return default
+  return DEFAULT_WEBHOOK;
 }
 
-/** Extract email from a string */
-function extractEmail(text) {
-  if (!text) return null;
-  const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-  return match ? match[0] : null;
-}
+// ============================================
+// CONTEXT EXTRACTION
+// ============================================
 
-/** Recursively find user email from Sidekick */
-function findUserEmail(root = window.parent?.document || document) {
-  if (!root) return null;
-
-  const spans = root.querySelectorAll(
-    'span[slot="description"], span.description',
-  );
-  let foundEmail = null;
-
-  Array.from(spans).some((span) => {
-    const email = extractEmail(span.textContent?.trim() || '');
-    if (email) {
-      foundEmail = email;
-      return true;
-    }
-    return false;
-  });
-
-  if (foundEmail) return foundEmail;
-
-  const elements = root.querySelectorAll('*');
-  Array.from(elements).some((el) => {
-    if (el.shadowRoot) {
-      const email = findUserEmail(el.shadowRoot);
-      if (email) {
-        foundEmail = email;
-        return true;
-      }
-    }
-    return false;
-  });
-
-  return foundEmail;
-}
-
-/** Resolve submitter */
-function resolveSubmitter(maxAttempts = 20) {
-  return new Promise((resolve) => {
-    let attempts = 0;
-    const tryFind = () => {
-      const email = findUserEmail();
-      if (email) {
-        resolve(email);
-      } else {
-        attempts += 1;
-        if (attempts >= maxAttempts) {
-          resolve('anonymous');
-        } else {
-          setTimeout(tryFind, RETRY_INTERVAL_MS);
-        }
-      }
-    };
-    tryFind();
-  });
-}
-
-/** Collect authored page context */
+/**
+ * Extract context from URL parameters and referrer
+ */
 function getContext() {
-  const refUrl = document.referrer ? new URL(document.referrer) : null;
-  const host = refUrl?.host || '';
-  const path = refUrl?.pathname || window.location.pathname || '';
+  const params = new URLSearchParams(window.location.search);
 
-  let ref = '';
-  let site = '';
-  let org = '';
-  const match = host.match(/^([^-]+)--([^-]+)--([^.]+)\.aem\.(page|live)$/);
-  if (match) [, ref, site, org] = match;
+  // Get referrer URL for path extraction
+  let refUrl = null;
+  if (document.referrer) {
+    try {
+      refUrl = new URL(document.referrer);
+    } catch (e) {
+      // Invalid referrer URL
+    }
+  }
 
-  const env = host.includes('.aem.live') ? 'live' : 'page';
+  // Parse host to extract org/site/ref
+  const host = params.get('host') || refUrl?.host || '';
+  const hostMatch = host.match(/^([^-]+)--([^-]+)--([^.]+)\.aem\.(page|live)$/);
+
+  const ref = params.get('ref') || hostMatch?.[1] || 'main';
+  const site = params.get('repo') || hostMatch?.[2] || '';
+  const org = params.get('owner') || hostMatch?.[3] || '';
+  const env = hostMatch?.[4] || 'page';
 
   return {
     ref,
     site,
     org,
-    env,
-    path,
     host,
-    isoNow: new Date().toISOString(),
+    env,
     refUrl,
+    isoNow: new Date().toISOString(),
   };
 }
 
-/** Build full payload */
-async function buildPayload(ctx) {
+// ============================================
+// PAGE ANALYSIS FUNCTIONS
+// ============================================
+
+/**
+ * Analyze content metrics
+ */
+function analyzeContent(doc) {
+  const main = doc.querySelector('main') || doc.body;
+  const text = main.textContent || '';
+
+  // Clean text for analysis
+  const cleanText = text.replace(/\s+/g, ' ').trim();
+  const words = cleanText.split(/\s+/).filter((w) => w.length > 0);
+  const sentences = cleanText.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+  const paragraphs = main.querySelectorAll('p');
+
+  const wordCount = words.length;
+  const sentenceCount = sentences.length;
+  const avgWordsPerSentence = sentenceCount > 0
+    ? Math.round(wordCount / sentenceCount)
+    : 0;
+
+  return {
+    wordCount,
+    characterCount: cleanText.length,
+    characterCountNoSpaces: cleanText.replace(/\s/g, '').length,
+    sentenceCount,
+    paragraphCount: paragraphs.length,
+    avgWordsPerSentence,
+    readingTimeMinutes: Math.ceil(wordCount / 200),
+  };
+}
+
+/**
+ * Analyze heading structure
+ */
+function analyzeHeadings(doc) {
+  const headings = [];
+  const counts = {
+    h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0,
+  };
+  const issues = [];
+
+  doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
+    const level = parseInt(h.tagName.charAt(1), 10);
+    const tag = h.tagName.toLowerCase();
+    counts[tag] += 1;
+
+    headings.push({
+      level,
+      tag,
+      text: h.textContent?.trim() || '',
+      id: h.id || '',
+    });
+  });
+
+  // Validation
+  if (counts.h1 === 0) {
+    issues.push('Missing H1 heading');
+  } else if (counts.h1 > 1) {
+    issues.push(`Multiple H1 headings found (${counts.h1})`);
+  }
+
+  // Check for skipped levels
+  let lastLevel = 0;
+  headings.forEach((h) => {
+    if (h.level > lastLevel + 1 && lastLevel > 0) {
+      issues.push(`Skipped heading level: H${lastLevel} to H${h.level}`);
+    }
+    lastLevel = h.level;
+  });
+
+  return {
+    headings,
+    counts,
+    total: headings.length,
+    issues,
+    isValid: issues.length === 0,
+  };
+}
+
+/**
+ * Analyze EDS blocks
+ */
+function analyzeBlocks(doc) {
+  const sections = doc.querySelectorAll('main > div');
+  const blocks = [];
+  const blockSummary = {};
+
+  sections.forEach((section, sectionIndex) => {
+    section.querySelectorAll(':scope > div[class]').forEach((block) => {
+      const classes = Array.from(block.classList);
+      const name = classes[0] || 'unknown';
+      const variants = classes.slice(1);
+
+      // Get content preview
+      const textContent = block.textContent?.trim() || '';
+      const contentPreview = textContent.length > 100
+        ? `${textContent.substring(0, 100)}...`
+        : textContent;
+
+      blocks.push({
+        name,
+        section: sectionIndex + 1,
+        variants,
+        contentPreview,
+      });
+
+      // Count occurrences
+      blockSummary[name] = (blockSummary[name] || 0) + 1;
+    });
+  });
+
+  return {
+    totalBlocks: blocks.length,
+    totalSections: sections.length,
+    blocks,
+    blockNames: [...new Set(blocks.map((b) => b.name))],
+    blockSummary,
+  };
+}
+
+/**
+ * Analyze SEO metadata
+ */
+function analyzeSEO(doc) {
+  const issues = [];
+
+  // Title
+  const titleEl = doc.querySelector('title');
+  const title = titleEl?.textContent?.trim() || '';
+  const titleLength = title.length;
+
+  if (!title) {
+    issues.push('Missing page title');
+  } else if (titleLength < 30) {
+    issues.push('Title too short (< 30 chars)');
+  } else if (titleLength > 60) {
+    issues.push('Title too long (> 60 chars)');
+  }
+
+  // Meta description
+  const metaDesc = doc.querySelector('meta[name="description"]');
+  const description = metaDesc?.content?.trim() || '';
+  const descLength = description.length;
+
+  if (!description) {
+    issues.push('Missing meta description');
+  } else if (descLength < 120) {
+    issues.push('Meta description too short (< 120 chars)');
+  } else if (descLength > 160) {
+    issues.push('Meta description too long (> 160 chars)');
+  }
+
+  // Canonical
+  const canonical = doc.querySelector('link[rel="canonical"]')?.href || '';
+  if (!canonical) {
+    issues.push('Missing canonical URL');
+  }
+
+  // Robots
+  const robots = doc.querySelector('meta[name="robots"]')?.content || '';
+
+  // Language
+  const lang = doc.documentElement.lang || '';
+  if (!lang) {
+    issues.push('Missing lang attribute');
+  }
+
+  return {
+    title: { content: title, length: titleLength },
+    metaDescription: { content: description, length: descLength },
+    canonical,
+    robots,
+    lang,
+    issues,
+  };
+}
+
+/**
+ * Calculate Open Graph score
+ */
+function calculateOGScore(hasSocialMeta, issueCount) {
+  if (!hasSocialMeta) {
+    return 0;
+  }
+  if (issueCount === 0) {
+    return 100;
+  }
+  return 50;
+}
+
+/**
+ * Analyze Open Graph and social meta
+ */
+function analyzeOpenGraph(doc) {
+  const og = {};
+  const twitter = {};
+  const issues = [];
+
+  // Open Graph
+  doc.querySelectorAll('meta[property^="og:"]').forEach((meta) => {
+    const prop = meta.getAttribute('property').replace('og:', '');
+    og[prop] = meta.content;
+  });
+
+  // Twitter
+  doc.querySelectorAll('meta[name^="twitter:"]').forEach((meta) => {
+    const name = meta.getAttribute('name').replace('twitter:', '');
+    twitter[name] = meta.content;
+  });
+
+  // Validation
+  if (!og.title) issues.push('Missing og:title');
+  if (!og.description) issues.push('Missing og:description');
+  if (!og.image) issues.push('Missing og:image');
+
+  const hasSocialMeta = Object.keys(og).length > 0 || Object.keys(twitter).length > 0;
+  const score = calculateOGScore(hasSocialMeta, issues.length);
+
+  return {
+    openGraph: og,
+    twitter,
+    issues,
+    score,
+    hasSocialMeta,
+  };
+}
+
+/**
+ * Analyze accessibility
+ */
+function analyzeAccessibility(doc) {
+  const images = doc.querySelectorAll('img');
+  let withAlt = 0;
+  let withoutAlt = 0;
+  let decorative = 0;
+
+  images.forEach((img) => {
+    const alt = img.getAttribute('alt');
+    if (alt === '') {
+      decorative += 1;
+    } else if (alt) {
+      withAlt += 1;
+    } else {
+      withoutAlt += 1;
+    }
+  });
+
+  const totalImages = images.length;
+  const altCoveragePercent = totalImages > 0
+    ? Math.round(((withAlt + decorative) / totalImages) * 100)
+    : 100;
+
+  const ariaLabels = doc.querySelectorAll('[aria-label]').length;
+  const ariaRoles = doc.querySelectorAll('[role]').length;
+
+  const issues = [];
+  if (withoutAlt > 0) issues.push(`${withoutAlt} images missing alt text`);
+  if (altCoveragePercent < 100) issues.push('Not all images have alt attributes');
+
+  const score = altCoveragePercent;
+
+  return {
+    images: {
+      total: totalImages,
+      withAlt,
+      withoutAlt,
+      decorative,
+      altCoveragePercent,
+    },
+    aria: {
+      labels: ariaLabels,
+      roles: ariaRoles,
+    },
+    issues,
+    score,
+  };
+}
+
+/**
+ * Analyze links
+ */
+function analyzeLinks(doc) {
+  const links = doc.querySelectorAll('a[href]');
+  let internal = 0;
+  let external = 0;
+  let mailto = 0;
+  let tel = 0;
+  const externalLinks = [];
+
+  links.forEach((link) => {
+    const href = link.getAttribute('href');
+    if (!href) return;
+
+    if (href.startsWith('mailto:')) {
+      mailto += 1;
+    } else if (href.startsWith('tel:')) {
+      tel += 1;
+    } else if (href.startsWith('http') && !href.includes(window.location.host)) {
+      external += 1;
+      externalLinks.push({
+        href,
+        text: link.textContent?.trim() || '',
+      });
+    } else {
+      internal += 1;
+    }
+  });
+
+  const buttons = doc.querySelectorAll('button, a.button, .button').length;
+
+  return {
+    total: links.length,
+    internal,
+    external,
+    buttons,
+    mailto,
+    tel,
+    externalLinks,
+  };
+}
+
+/**
+ * Analyze interactive elements
+ */
+function analyzeInteractiveElements(doc) {
+  return {
+    forms: doc.querySelectorAll('form').length,
+    buttons: doc.querySelectorAll('button').length,
+    inputs: doc.querySelectorAll('input, textarea, select').length,
+    videos: doc.querySelectorAll('video').length,
+    iframes: doc.querySelectorAll('iframe').length,
+  };
+}
+
+/**
+ * Collect analytics context
+ */
+function collectAnalytics() {
+  const now = new Date();
+  return {
+    timestamp: now.toISOString(),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    userAgent: navigator.userAgent,
+    language: navigator.language,
+    screen: {
+      width: window.screen?.width || 0,
+      height: window.screen?.height || 0,
+      colorDepth: window.screen?.colorDepth || 0,
+    },
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    },
+  };
+}
+
+// ============================================
+// PAYLOAD BUILDING
+// ============================================
+
+/**
+ * Build full payload with comprehensive analysis
+ */
+async function buildPayload(ctx, notes = '') {
   const {
     ref, site, org, host, isoNow, env, refUrl,
   } = ctx;
 
-  // Always prefer referrer path, fallback to iframe path
   const refPath = refUrl?.pathname || window.location.pathname || '';
   const cleanPath = refPath.replace(/^\/+/, '');
   const name = (cleanPath.split('/').filter(Boolean).pop() || 'index')
-    .replace(/\.[^.]+$/, '') || 'index';
-  const submittedBy = await resolveSubmitter();
+    .replace(/\.[^.]+$/, '');
 
-  let liveHost = host;
-  let previewHost = host;
-  if (ref && site && org) {
-    liveHost = `${ref}--${site}--${org}.aem.live`;
-    previewHost = `${ref}--${site}--${org}.aem.page`;
-  } else if (host?.endsWith('.aem.page')) {
-    liveHost = host.replace('.aem.page', '.aem.live');
+  // Construct URLs
+  const baseHost = `${ref}--${site}--${org}`;
+  const previewUrl = `https://${baseHost}.aem.page/${cleanPath}`;
+  const liveUrl = `https://${baseHost}.aem.live/${cleanPath}`;
+
+  // Fetch page for analysis
+  let doc = document;
+  try {
+    const response = await fetch(previewUrl);
+    if (response.ok) {
+      const html = await response.text();
+      const parser = new DOMParser();
+      doc = parser.parseFromString(html, 'text/html');
+    }
+  } catch (e) {
+    console.warn('Could not fetch page for analysis, using current document');
   }
 
-  const topDoc = window.top?.document;
+  // Get page title
+  const pageTitle = doc.querySelector('title')?.textContent?.trim()
+    || doc.querySelector('h1')?.textContent?.trim()
+    || name;
 
-  const pageTitle = topDoc?.title
-    || topDoc?.querySelector('meta[property="og:title"]')?.content
-    || topDoc?.querySelector('meta[name="title"]')?.content
-    || document.title
-    || '';
-
-  const headings = Array.from(topDoc?.querySelectorAll('h1, h2, h3') || []).map(
-    (h) => ({
-      level: h.tagName,
-      text: h.textContent?.trim() || '',
-    }),
-  );
-
-  const metaDescription = topDoc?.querySelector('meta[name="description"]')?.content || '';
-
-  const viewport = {
-    width:
-      window.top === window
-        ? window.innerWidth
-        : (window.top?.innerWidth || window.innerWidth),
-    height:
-      window.top === window
-        ? window.innerHeight
-        : (window.top?.innerHeight || window.innerHeight),
-  };
+  // Run all analysis
+  const contentMetrics = analyzeContent(doc);
+  const headingStructure = analyzeHeadings(doc);
+  const blocks = analyzeBlocks(doc);
+  const seo = analyzeSEO(doc);
+  const openGraph = analyzeOpenGraph(doc);
+  const accessibility = analyzeAccessibility(doc);
+  const links = analyzeLinks(doc);
+  const interactiveElements = analyzeInteractiveElements(doc);
+  const analytics = collectAnalytics();
 
   return {
+    // Basic Info
     title: pageTitle,
-    url: `https://${liveHost}/${cleanPath}`,
     name,
-    publishedDate: isoNow,
-    submittedBy,
-    path: cleanPath ? `/${cleanPath}` : '/',
-    previewUrl: `https://${previewHost}/${cleanPath}`,
-    liveUrl: `https://${liveHost}/${cleanPath}`,
+    path: `/${cleanPath}`,
+    url: liveUrl,
+    previewUrl,
+    liveUrl,
+    reviewSubmissionDate: isoNow,
+    submittedBy: window.adobeIMS?.getUserProfile?.()?.email || 'unknown',
+
+    // Environment
     host,
     env,
     org,
     site,
     ref,
     source: 'DA.live',
-    lang: topDoc?.documentElement?.lang || undefined,
-    locale: navigator.language || undefined,
-    metaDescription,
-    headings,
-    analytics: {
-      userAgent: navigator.userAgent,
-      timezoneOffset: new Date().getTimezoneOffset(),
-      viewport,
-    },
+
+    // Analysis Results
+    contentMetrics,
+    headingStructure,
+    blocks,
+    seo,
+    openGraph,
+    accessibility,
+    links,
+    interactiveElements,
+    analytics,
+
+    // Notes
+    notes: notes || '',
   };
 }
 
-/** Post payload */
+// ============================================
+// WEBHOOK SUBMISSION
+// ============================================
+
+/**
+ * Post payload to webhook
+ */
 async function postToWebhook(payload) {
-  const res = await fetch(resolveWebhook(), {
+  const webhookUrl = getWebhookUrl();
+
+  const response = await fetch(webhookUrl, {
     method: 'POST',
     headers: {
-      'content-type': 'application/json',
-      accept: 'application/json',
+      'Content-Type': 'application/json',
     },
-    mode: 'cors',
     body: JSON.stringify(payload),
   });
 
-  const text = await res.text();
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
-
-  try {
-    return JSON.parse(text);
-  } catch (err) {
-    /* eslint-disable-next-line no-console */
-    console.warn('Response not JSON:', text);
-    return {};
+  if (!response.ok) {
+    throw new Error(`Webhook failed: ${response.status} ${response.statusText}`);
   }
+
+  return response;
 }
 
-/** Render review card */
-function renderCard({ status, message, payload }) {
+// ============================================
+// FORWARD DECLARATIONS FOR CIRCULAR REFERENCES
+// ============================================
+
+// These will be assigned after function definitions
+let renderCard;
+
+// ============================================
+// DIALOG AND SUBMISSION HANDLERS
+// (Must be defined before renderCard uses them)
+// ============================================
+
+/**
+ * Submit review with optional notes
+ */
+const handleSubmitReview = async function handleSubmitReviewFn(notes = '') {
+  renderCard({ status: 'loading', message: 'Submitting review request…' });
+
+  try {
+    const ctx = getContext();
+    const payload = await buildPayload(ctx, notes);
+    await postToWebhook(payload);
+
+    renderCard({
+      status: 'in-progress',
+      message: 'Review request submitted successfully. Review in progress.',
+      payload,
+    });
+  } catch (error) {
+    console.error('Submit error:', error);
+    renderCard({
+      status: 'error',
+      message: `Failed to submit review: ${error.message}`,
+    });
+  }
+};
+
+/**
+ * Show notes dialog for resubmission
+ */
+const handleShowNotesDialog = function handleShowNotesDialogFn() {
+  const overlay = document.createElement('div');
+  overlay.className = 'dialog-overlay';
+  overlay.innerHTML = `
+    <div class="dialog">
+      <h3>Add Notes (Optional)</h3>
+      <textarea id="notes-input" placeholder="Enter any additional notes for this review submission..." rows="4"></textarea>
+      <div class="dialog-actions">
+        <button id="cancel-btn" class="btn btn-secondary">Cancel</button>
+        <button id="submit-btn" class="btn btn-primary">Submit</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const cancelBtn = document.getElementById('cancel-btn');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+      overlay.remove();
+    });
+  }
+
+  const submitBtn = document.getElementById('submit-btn');
+  if (submitBtn) {
+    submitBtn.addEventListener('click', async () => {
+      const notesInput = document.getElementById('notes-input');
+      const notesValue = notesInput ? notesInput.value.trim() : '';
+      overlay.remove();
+      await handleSubmitReview(notesValue);
+    });
+  }
+};
+
+// ============================================
+// UI RENDERING
+// ============================================
+
+/**
+ * Get SEO issues display text
+ */
+function getSeoIssuesText(issues) {
+  if (issues.length === 0) {
+    return 'None';
+  }
+  return issues.join(', ');
+}
+
+/**
+ * Get SEO issues CSS class
+ */
+function getSeoIssuesClass(issues) {
+  if (issues.length > 0) {
+    return 'warning';
+  }
+  return 'success';
+}
+
+/**
+ * Render the card UI
+ */
+renderCard = function renderCardFn({ status, message, payload }) {
   const details = document.getElementById('details');
   if (!details) return;
 
-  const statusMap = {
-    success: 'success',
-    error: 'error',
-  };
-  const statusClass = statusMap[status] || 'loading';
+  let content = '';
+  const isLoading = status === 'loading';
+  const isError = status === 'error';
+  const inProgress = status === 'in-progress';
 
-  const content = status === 'success' && payload
-    ? `
-        <p class="status-message ${statusClass}">${message}</p>
-        <p><strong>Page Title:</strong> ${payload.title}</p>
-        <p><strong>Page Name:</strong> ${payload.name}</p>
-        <p><strong>Submitter Email:</strong> ${payload.submittedBy}</p>
-        <p><strong>Page Preview URL:</strong>
-          <a href="${payload.previewUrl}" target="_blank" rel="noopener noreferrer">
-            ${payload.previewUrl}
-          </a>
-        </p>
-      `
-    : `<p class="status-message ${statusClass}">${message}</p>`;
+  if (isLoading) {
+    content = `
+      <div class="notice">
+        <div class="spinner"></div>
+        <p class="status-message loading">${message}</p>
+      </div>
+    `;
+  } else if (isError) {
+    content = `
+      <div class="notice">
+        <p class="status-message error">${message}</p>
+        <button id="retry-btn" class="btn btn-primary">Retry</button>
+      </div>
+    `;
+  } else {
+    // Success or In-Progress
+    const seoClass = getSeoIssuesClass(payload.seo.issues);
+    const seoText = getSeoIssuesText(payload.seo.issues);
+    const notesHtml = payload.notes ? `
+        <div class="detail-row full-width">
+          <span class="label">Notes:</span>
+          <span class="value">${payload.notes}</span>
+        </div>
+        ` : '';
+    const sendAgainBtn = inProgress ? '<button id="resubmit-btn" class="btn btn-primary">Send Again</button>' : '';
+
+    content = `
+      <p class="status-message success">${message}</p>
+      <div class="page-details">
+        <div class="detail-row">
+          <span class="label">Title:</span>
+          <span class="value">${payload.title}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">Path:</span>
+          <span class="value">${payload.path}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">Words:</span>
+          <span class="value">${payload.contentMetrics.wordCount}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">Blocks:</span>
+          <span class="value">${payload.blocks.totalBlocks} (${payload.blocks.blockNames.join(', ')})</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">SEO Issues:</span>
+          <span class="value ${seoClass}">${seoText}</span>
+        </div>
+        <div class="detail-row">
+          <span class="label">Accessibility:</span>
+          <span class="value">${payload.accessibility.score}%</span>
+        </div>
+        ${notesHtml}
+      </div>
+      <div class="actions">
+        <a href="${payload.previewUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+          View Preview
+        </a>
+        ${sendAgainBtn}
+      </div>
+    `;
+  }
 
   details.innerHTML = `
     <div id="review-card">
       <div class="header-bar">
         <img src="./assets/agilent-logo.png" alt="Agilent Logo" class="logo" />
+        <span class="header-title">Send For Review</span>
       </div>
       <div class="content">${content}</div>
     </div>
   `;
+
+  // Attach event listeners
+  if (status === 'error') {
+    const retryBtn = document.getElementById('retry-btn');
+    if (retryBtn) {
+      retryBtn.addEventListener('click', () => {
+        window.location.reload();
+      });
+    }
+  }
+
+  if (status === 'in-progress') {
+    const resubmitBtn = document.getElementById('resubmit-btn');
+    if (resubmitBtn) {
+      resubmitBtn.addEventListener('click', handleShowNotesDialog);
+    }
+  }
+};
+
+// ============================================
+// INITIALIZATION
+// ============================================
+
+/**
+ * Initialize the tool
+ */
+async function init() {
+  await handleSubmitReview();
 }
 
-/** Init */
-document.addEventListener('DOMContentLoaded', async () => {
-  renderCard({ status: 'loading', message: 'Submitting review request…' });
+// Start on DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 
-  try {
-    const ctx = getContext();
-    const payload = await buildPayload(ctx);
-    await postToWebhook(payload);
+// ============================================
+// EXPORTS
+// ============================================
 
-    renderCard({
-      status: 'success',
-      message: 'Review request submitted to Workfront.',
-      payload,
-    });
-  } catch (err) {
-    renderCard({
-      status: 'error',
-      message: `Request Failed: ${err.message}`,
-    });
-  }
-});
+/**
+ * Default export for module usage
+ */
+export default {
+  init,
+  getContext,
+  buildPayload,
+  postToWebhook,
+  analyzeContent,
+  analyzeHeadings,
+  analyzeBlocks,
+  analyzeSEO,
+  analyzeOpenGraph,
+  analyzeAccessibility,
+  analyzeLinks,
+  analyzeInteractiveElements,
+};
+
+// Named exports
+export {
+  init,
+  getContext,
+  buildPayload,
+  postToWebhook,
+  analyzeContent,
+  analyzeHeadings,
+  analyzeBlocks,
+  analyzeSEO,
+  analyzeOpenGraph,
+  analyzeAccessibility,
+  analyzeLinks,
+  analyzeInteractiveElements,
+};
