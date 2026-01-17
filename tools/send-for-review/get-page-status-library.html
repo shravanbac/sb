@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Get Page Current Status</title>
+  <link rel="icon" href="data:,">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; background-color: #f7f9fb; margin: 0; padding: 0; color: #333; line-height: 1.5; }
+
+    #status-card { background-color: #fff; border: 1px solid #d9e1e2; box-shadow: 0 2px 6px rgba(0,0,0,0.1); width: 100%; min-height: 100vh; overflow: hidden; }
+    .header-bar { display: flex; align-items: center; background-color: #0077c8; padding: 10px 14px; color: #fff; font-weight: bold; font-size: 1rem; }
+    .header-bar .logo { height: 40px; margin-right: 10px; }
+    .header-title { flex: 1; }
+    .content { padding: 16px 20px; }
+
+    .status-message { font-weight: 600; margin-bottom: 16px; padding: 12px 16px; border-radius: 4px; }
+    .status-message.loading { color: #555; font-style: italic; background-color: #f5f5f5; }
+    .status-message.in-review { color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; }
+    .status-message.no-review { color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; }
+    .status-message.complete { color: #0c5460; background-color: #d1ecf1; border: 1px solid #bee5eb; }
+    .status-message.error { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; }
+
+    .page-details { margin: 16px 0; }
+    .detail-row { display: flex; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-row.full-width { flex-direction: column; }
+    .detail-row .label { font-weight: 600; color: #004b87; min-width: 130px; flex-shrink: 0; }
+    .detail-row .value { color: #333; word-break: break-word; }
+    .detail-row.full-width .value { margin-top: 4px; padding: 8px 12px; background-color: #f9f9f9; border-radius: 4px; font-style: italic; }
+
+    .actions { display: flex; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; font-size: 14px; font-weight: 600; border-radius: 4px; cursor: pointer; text-decoration: none; transition: all 0.2s ease; border: none; flex: 1; }
+    .btn-primary { background-color: #0077c8; color: #fff; }
+    .btn-primary:hover { background-color: #005a9e; }
+    .btn-secondary { background-color: #fff; color: #0077c8; border: 1px solid #0077c8; }
+    .btn-secondary:hover { background-color: #f0f7fc; }
+
+    .notice { text-align: center; padding: 20px; }
+    .spinner { width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #0077c8; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .info-note { font-size: 12px; color: #666; margin-top: 12px; text-align: center; padding: 8px; background: #f8f9fa; border-radius: 4px; }
+    
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+    .status-badge.in-review { background: #fff3cd; color: #856404; }
+    .status-badge.no-review { background: #d4edda; color: #155724; }
+    .status-badge.complete { background: #d1ecf1; color: #0c5460; }
+  </style>
+</head>
+<body>
+  <div id="details"></div>
+  <script type="module">
+    // ============================================
+    // CONFIGURATION
+    // ============================================
+    const CONFIG = {
+      // Webhook for checking status (queries Data Store)
+      statusWebhookUrl: 'https://hook.us2.make.com/2m2qfnd6ad4283weagp7xlyk66npgsup',
+      
+      defaultRef: 'main',
+      logoPath: './assets/agilent-logo.png',
+    };
+
+    let currentContext = null;
+
+    function log(msg, data = null) {
+      const ts = new Date().toISOString().slice(11, 19);
+      console.log(`[GPS ${ts}]`, msg, data || '');
+    }
+
+    // ============================================
+    // STATUS CHECK (from Make.com Data Store)
+    // ============================================
+    async function checkReviewStatus(ctx) {
+      log('Checking review status from Make.com...');
+      
+      try {
+        const response = await fetch(CONFIG.statusWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'check-status',
+            pageIdentifier: ctx.pageIdentifier,
+            org: ctx.org,
+            site: ctx.site,
+            ref: ctx.ref,
+            path: ctx.path,
+          }),
+        });
+
+        if (!response.ok) {
+          log('Status check failed', response.status);
+          return null;
+        }
+
+        const data = await response.json();
+        log('Status response', data);
+        return data;
+
+      } catch (err) {
+        log('Status check error', err.message);
+        return null;
+      }
+    }
+
+    // ============================================
+    // CONTEXT DETECTION
+    // ============================================
+    function getContextFromURLParams() {
+      const p = new URLSearchParams(window.location.search);
+      return { ref: p.get('ref') || '', site: p.get('site') || p.get('repo') || '', org: p.get('org') || p.get('owner') || '', path: p.get('path') || '' };
+    }
+
+    function getContextFromReferrer() {
+      if (!document.referrer) return null;
+      try {
+        const url = new URL(document.referrer);
+        const daMatch = url.href.match(/da\.live\/edit#\/([^\/]+)\/([^\/]+)\/?(.*)?/);
+        if (daMatch) return { org: daMatch[1], site: daMatch[2], path: daMatch[3] || 'index', ref: 'main', source: 'da.live-referrer' };
+        const aemMatch = url.host.match(/^([^-]+)--([^-]+)--([^.]+)\.aem\.(page|live)$/);
+        if (aemMatch) return { ref: aemMatch[1], site: aemMatch[2], org: aemMatch[3], path: url.pathname.replace(/^\//, '') || 'index', source: 'aem-referrer' };
+      } catch {}
+      return null;
+    }
+
+    async function getContextFromDASDK() {
+      try {
+        const DA_SDK = await import('https://da.live/nx/utils/sdk.js');
+        const sdk = await DA_SDK.default;
+        if (sdk?.context) return {
+          org: sdk.context.org || sdk.context.owner || '',
+          site: sdk.context.repo || '',
+          ref: sdk.context.ref || 'main',
+          path: sdk.context.path || 'index',
+          source: 'da-sdk'
+        };
+      } catch {}
+      return null;
+    }
+
+    async function getFullContext() {
+      const urlParams = getContextFromURLParams();
+      const referrerCtx = getContextFromReferrer();
+      const sdkCtx = await getContextFromDASDK();
+
+      const ctx = {
+        ref: sdkCtx?.ref || referrerCtx?.ref || urlParams.ref || CONFIG.defaultRef,
+        site: sdkCtx?.site || referrerCtx?.site || urlParams.site || '',
+        org: sdkCtx?.org || referrerCtx?.org || urlParams.org || '',
+        path: sdkCtx?.path || referrerCtx?.path || urlParams.path || 'index',
+        source: sdkCtx?.source || referrerCtx?.source || 'url-params',
+      };
+
+      if (ctx.path.includes('tools/') || ctx.path.includes('get-page-status')) ctx.path = 'index';
+      ctx.path = ctx.path.replace(/^\/+/, '').replace(/\.html?$/, '') || 'index';
+
+      ctx.previewUrl = `https://${ctx.ref}--${ctx.site}--${ctx.org}.aem.page/${ctx.path}`;
+      ctx.liveUrl = `https://${ctx.ref}--${ctx.site}--${ctx.org}.aem.live/${ctx.path}`;
+      ctx.pageIdentifier = `${ctx.org}/${ctx.site}/${ctx.path}`;
+
+      log('Final context', ctx);
+      return ctx;
+    }
+
+    // ============================================
+    // UI RENDERING
+    // ============================================
+    function formatDate(iso) { try { return new Date(iso).toLocaleString(); } catch { return iso; } }
+
+    function renderCard(state) {
+      const details = document.getElementById('details');
+      let content = '';
+      const headerHtml = `<div class="header-bar"><img src="${CONFIG.logoPath}" alt="Agilent Logo" class="logo" /></div>`;
+
+      if (state.status === 'loading') {
+        content = `<div class="notice"><div class="spinner"></div><p class="status-message loading">${state.message}</p></div>`;
+      }
+      else if (state.status === 'error') {
+        content = `<div class="notice"><p class="status-message error">${state.message}</p><button id="retry-btn" class="btn btn-primary" style="margin-top:12px;">Retry</button></div>`;
+      }
+      else if (state.status === 'in-review') {
+        const d = state.data;
+        content = `
+          <p class="status-message in-review">Page review is in progress.</p>
+          <div class="page-details">
+            <div class="detail-row"><span class="label">Page:</span><span class="value">${currentContext.path}</span></div>
+            <div class="detail-row"><span class="label">Status:</span><span class="value"><span class="status-badge in-review">In Review</span></span></div>
+            <div class="detail-row"><span class="label">Title:</span><span class="value">${d.title || 'N/A'}</span></div>
+            <div class="detail-row"><span class="label">Submitted By:</span><span class="value">${d.submittedBy || 'Unknown'}</span></div>
+            <div class="detail-row"><span class="label">Submitted On:</span><span class="value">${d.submittedDate ? formatDate(d.submittedDate) : 'N/A'}</span></div>
+            ${d.notes ? `<div class="detail-row full-width"><span class="label">Notes:</span><span class="value">${d.notes}</span></div>` : ''}
+          </div>
+          <div class="actions">
+            <a href="${currentContext.previewUrl}" target="_blank" class="btn btn-secondary">View Preview</a>
+            <button id="refresh-btn" class="btn btn-primary">Refresh Status</button>
+          </div>`;
+      }
+      else if (state.status === 'complete') {
+        const d = state.data || {};
+        content = `
+          <p class="status-message complete">Page review has been completed.</p>
+          <div class="page-details">
+            <div class="detail-row"><span class="label">Page:</span><span class="value">${currentContext.path}</span></div>
+            <div class="detail-row"><span class="label">Status:</span><span class="value"><span class="status-badge complete">Complete</span></span></div>
+            ${d.completedDate ? `<div class="detail-row"><span class="label">Completed On:</span><span class="value">${formatDate(d.completedDate)}</span></div>` : ''}
+          </div>
+          <div class="actions">
+            <a href="${currentContext.liveUrl}" target="_blank" class="btn btn-secondary">View Live</a>
+            <button id="refresh-btn" class="btn btn-primary">Refresh Status</button>
+          </div>
+          <p class="info-note">Page is ready for a new review submission if needed.</p>`;
+      }
+      else if (state.status === 'no-review') {
+        content = `
+          <p class="status-message no-review">No active review found for this page.</p>
+          <div class="page-details">
+            <div class="detail-row"><span class="label">Page:</span><span class="value">${currentContext.path}</span></div>
+            <div class="detail-row"><span class="label">Status:</span><span class="value"><span class="status-badge no-review">No Review</span></span></div>
+            <div class="detail-row"><span class="label">Page ID:</span><span class="value">${currentContext.pageIdentifier}</span></div>
+          </div>
+          <div class="actions">
+            <a href="${currentContext.previewUrl}" target="_blank" class="btn btn-secondary">View Preview</a>
+            <button id="refresh-btn" class="btn btn-primary">Refresh Status</button>
+          </div>
+          <p class="info-note">Use "Send For Review" to submit this page for review.</p>`;
+      }
+
+      details.innerHTML = `<div id="status-card">${headerHtml}<div class="content">${content}</div></div>`;
+
+      // Event listeners
+      document.getElementById('retry-btn')?.addEventListener('click', init);
+      document.getElementById('refresh-btn')?.addEventListener('click', init);
+    }
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+    async function init() {
+      renderCard({ status: 'loading', message: 'Checking page status…' });
+      
+      try {
+        currentContext = await getFullContext();
+        if (!currentContext.org || !currentContext.site) {
+          renderCard({ status: 'error', message: 'Could not determine page context. Make sure you have a page open.' });
+          return;
+        }
+
+        // Check status from Make.com Data Store
+        const statusResponse = await checkReviewStatus(currentContext);
+        
+        if (!statusResponse) {
+          renderCard({ status: 'error', message: 'Failed to check status. Please try again.' });
+          return;
+        }
+
+        if (statusResponse.status === 'in-review') {
+          renderCard({ status: 'in-review', data: statusResponse });
+        } else if (statusResponse.status === 'complete') {
+          renderCard({ status: 'complete', data: statusResponse });
+        } else {
+          renderCard({ status: 'no-review' });
+        }
+        
+      } catch (err) {
+        log('Init error', err.message);
+        renderCard({ status: 'error', message: `Error: ${err.message}` });
+      }
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+  </script>
+</body>
+</html>

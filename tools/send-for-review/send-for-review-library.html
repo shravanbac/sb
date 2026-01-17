@@ -7,41 +7,13 @@
   <link rel="icon" href="data:,">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: Arial, Helvetica, sans-serif;
-      background-color: #f7f9fb;
-      margin: 0;
-      padding: 0;
-      color: #333;
-      line-height: 1.5;
-    }
+    body { font-family: Arial, Helvetica, sans-serif; background-color: #f7f9fb; margin: 0; padding: 0; color: #333; line-height: 1.5; }
 
-    #review-card {
-      background-color: #fff;
-      border: 1px solid #d9e1e2;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      width: 100%;
-      min-height: 100vh;
-      overflow: hidden;
-    }
-    #review-card .header-bar {
-      display: flex;
-      align-items: center;
-      background-color: #0077c8;
-      padding: 10px 14px;
-      color: #fff;
-      font-weight: bold;
-      font-size: 1rem;
-    }
-    #review-card .header-bar .logo {
-      height: 40px;
-      margin-right: 10px;
-    }
-    #review-card .header-title { flex: 1; }
-    #review-card .content { padding: 16px 20px; }
-    #review-card strong { color: #004b87; }
-    #review-card a { color: #0077c8; font-weight: 500; text-decoration: none; }
-    #review-card a:hover { text-decoration: underline; }
+    #review-card { background-color: #fff; border: 1px solid #d9e1e2; box-shadow: 0 2px 6px rgba(0,0,0,0.1); width: 100%; min-height: 100vh; overflow: hidden; }
+    .header-bar { display: flex; align-items: center; background-color: #0077c8; padding: 10px 14px; color: #fff; font-weight: bold; font-size: 1rem; }
+    .header-bar .logo { height: 40px; margin-right: 10px; }
+    .header-title { flex: 1; }
+    .content { padding: 16px 20px; }
 
     .status-message { font-weight: 600; margin-bottom: 16px; padding: 12px 16px; border-radius: 4px; }
     .status-message.loading { color: #555; font-style: italic; background-color: #f5f5f5; }
@@ -58,7 +30,6 @@
     .detail-row .value { color: #333; word-break: break-word; }
     .detail-row .value.warning { color: #856404; }
     .detail-row .value.success { color: #155724; }
-    .detail-row .value .muted { background: #e0e0e0; padding: 2px 8px; border-radius: 3px; font-size: 13px; }
     .detail-row.full-width .value { margin-top: 4px; padding: 8px 12px; background-color: #f9f9f9; border-radius: 4px; font-style: italic; }
 
     .form-section { margin: 16px 0; padding-top: 16px; border-top: 1px solid #eee; }
@@ -66,26 +37,14 @@
     .form-group:last-child { margin-bottom: 0; }
     .form-label { display: block; font-weight: 600; color: #004b87; margin-bottom: 6px; font-size: 14px; }
     .form-label .required { color: #dc3545; }
-    .form-input, .form-textarea {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-family: inherit;
-      font-size: 14px;
-    }
+    .form-input, .form-textarea { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 14px; }
     .form-input:focus, .form-textarea:focus { outline: none; border-color: #0077c8; box-shadow: 0 0 0 2px rgba(0,119,200,0.2); }
     .form-input.error { border-color: #dc3545; }
     .form-textarea { resize: vertical; min-height: 70px; }
     .form-hint { font-size: 12px; color: #666; margin-top: 4px; }
 
     .actions { display: flex; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; }
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      padding: 10px 20px; font-size: 14px; font-weight: 600;
-      border-radius: 4px; cursor: pointer; text-decoration: none;
-      transition: all 0.2s ease; border: none; flex: 1;
-    }
+    .btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; font-size: 14px; font-weight: 600; border-radius: 4px; cursor: pointer; text-decoration: none; transition: all 0.2s ease; border: none; flex: 1; }
     .btn-primary { background-color: #0077c8; color: #fff; }
     .btn-primary:hover { background-color: #005a9e; }
     .btn-primary:disabled { background-color: #ccc; cursor: not-allowed; }
@@ -98,20 +57,29 @@
 
     .debug-toggle { font-size: 12px; color: #666; cursor: pointer; margin-top: 12px; text-decoration: underline; }
     .debug-panel { margin-top: 12px; padding: 10px; background: #fff8e1; border-radius: 4px; font-size: 10px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto; }
+    
+    .info-note { font-size: 12px; color: #666; margin-top: 12px; text-align: center; padding: 8px; background: #f8f9fa; border-radius: 4px; }
   </style>
 </head>
 <body>
   <div id="details"></div>
   <script type="module">
+    // ============================================
+    // CONFIGURATION
+    // ============================================
     const CONFIG = {
-      webhookUrl: 'https://hook.us2.make.com/d5lqgghlwlcalpy2zw0l7tqukr0u75bd',
-      storageKeyPrefix: 'sfr_review_',
-      emailStorageKey: 'sfr_user_email',
+      // Webhook for submitting reviews (stores in Data Store)
+      submitWebhookUrl: 'https://hook.us2.make.com/d5lqgghlwlcalpy2zw0l7tqukr0u75bd',
+      
+      // Webhook for checking status (queries Data Store)
+      statusWebhookUrl: 'https://hook.us2.make.com/2m2qfnd6ad4283weagp7xlyk66npgsup',
+      
       defaultRef: 'main',
       logoPath: './assets/agilent-logo.png',
+      emailStorageKey: 'sfr_user_email', // Only for email convenience, not status
     };
 
-    let debugLogs = [], currentContext = null, currentAnalysis = null, contentSource = null;
+    let debugLogs = [], currentContext = null, currentAnalysis = null;
 
     function log(msg, data = null) {
       const ts = new Date().toISOString().slice(11, 19);
@@ -120,24 +88,64 @@
     }
 
     // ============================================
-    // STORAGE
+    // EMAIL STORAGE (convenience only)
     // ============================================
     function getStoredEmail() { try { return localStorage.getItem(CONFIG.emailStorageKey) || ''; } catch { return ''; } }
     function saveEmail(email) { try { localStorage.setItem(CONFIG.emailStorageKey, email); } catch {} }
-    function getReviewStateKey(path) { return `${CONFIG.storageKeyPrefix}${(path || 'index').replace(/[\/\\]/g, '_')}`; }
-    function getReviewState(path) { try { return JSON.parse(localStorage.getItem(getReviewStateKey(path))); } catch { return null; } }
-    function setReviewState(path, state) { localStorage.setItem(getReviewStateKey(path), JSON.stringify({ ...state, timestamp: new Date().toISOString() })); }
-    function clearReviewState(path) { localStorage.removeItem(getReviewStateKey(path)); }
 
     // ============================================
-    // STATUS CHECKS
+    // STATUS CHECK (from Make.com Data Store)
     // ============================================
-    async function checkPageStatus(ctx) {
+    async function checkReviewStatus(ctx) {
+      log('Checking review status from Make.com...');
+      
       try {
-        const liveRes = await fetch(ctx.liveUrl, { method: 'HEAD', cache: 'no-store' });
-        if (liveRes.ok) return { isPublished: true, lastModified: liveRes.headers.get('Last-Modified') };
-      } catch {}
-      return { isPublished: false };
+        const response = await fetch(CONFIG.statusWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'check-status',
+            pageIdentifier: ctx.pageIdentifier,
+            org: ctx.org,
+            site: ctx.site,
+            ref: ctx.ref,
+            path: ctx.path,
+          }),
+        });
+
+        if (!response.ok) {
+          log('Status check failed', response.status);
+          return null;
+        }
+
+        const data = await response.json();
+        log('Status response', data);
+
+        /*
+         * Expected response from Make.com:
+         * 
+         * If review exists:
+         * {
+         *   status: "in-review",
+         *   title: "Page Title",
+         *   submittedBy: "user@email.com",
+         *   submittedDate: "2026-01-17T10:30:00.000Z",
+         *   notes: "Review notes",
+         *   pageIdentifier: "org/site/path"
+         * }
+         * 
+         * If no review found:
+         * {
+         *   status: "none"
+         * }
+         */
+
+        return data;
+
+      } catch (err) {
+        log('Status check error', err.message);
+        return null;
+      }
     }
 
     // ============================================
@@ -194,20 +202,21 @@
       ctx.path = ctx.path.replace(/^\/+/, '').replace(/\.html?$/, '') || 'index';
 
       ctx.host = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.page`;
-      ctx.previewHost = ctx.host;
-      ctx.liveHost = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.live`;
-      ctx.previewUrl = `https://${ctx.previewHost}/${ctx.path}`;
-      ctx.liveUrl = `https://${ctx.liveHost}/${ctx.path}`;
-      ctx.plainUrl = `https://${ctx.previewHost}/${ctx.path}.plain.html`;
+      ctx.previewUrl = `https://${ctx.host}/${ctx.path}`;
+      ctx.liveUrl = `https://${ctx.ref}--${ctx.site}--${ctx.org}.aem.live/${ctx.path}`;
+      ctx.plainUrl = `https://${ctx.host}/${ctx.path}.plain.html`;
       ctx.daSourceUrl = `https://admin.da.live/source/${ctx.org}/${ctx.site}/${ctx.path}.html`;
       ctx.env = 'page';
+      
+      // Unique page identifier for Data Store
+      ctx.pageIdentifier = `${ctx.org}/${ctx.site}/${ctx.path}`;
 
       log('Final context', ctx);
       return ctx;
     }
 
     // ============================================
-    // CONTENT FETCHING
+    // CONTENT FETCHING & ANALYSIS
     // ============================================
     async function fetchContent(ctx) {
       const strategies = [
@@ -217,210 +226,102 @@
       ];
       for (const s of strategies) {
         try {
-          log(`Trying ${s.source}`, s.url);
           const res = await fetch(s.url, { cache: 'no-store' });
-          if (res.ok) {
-            const html = await res.text();
-            log(`${s.source} success`, { length: html.length });
-            return { html, source: s.source, isPlain: s.isPlain };
-          }
-        } catch (e) { log(`${s.source} error`, e.message); }
+          if (res.ok) return { html: await res.text(), source: s.source, isPlain: s.isPlain };
+        } catch {}
       }
       return null;
     }
 
-    // ============================================
-    // CONTENT ANALYSIS (Full Payload Structure)
-    // ============================================
-    function analyzeContent(root) {
+    function analyzeDocument(doc, isPlain) {
+      const root = isPlain ? doc.body : (doc.querySelector('main') || doc.body);
       const text = root?.textContent || '';
       const cleanText = text.replace(/\s+/g, ' ').trim();
       const words = cleanText.split(/\s+/).filter(w => w.length > 0);
       const sentences = cleanText.split(/[.!?]+/).filter(s => s.trim().length > 0);
-      const paragraphs = root.querySelectorAll('p');
 
-      return {
+      // Content Metrics
+      const contentMetrics = {
         wordCount: words.length,
         characterCount: cleanText.length,
         characterCountNoSpaces: cleanText.replace(/\s/g, '').length,
         sentenceCount: sentences.length,
-        paragraphCount: paragraphs.length,
+        paragraphCount: root.querySelectorAll('p').length,
         avgWordsPerSentence: sentences.length > 0 ? Math.round(words.length / sentences.length) : 0,
         readingTimeMinutes: Math.ceil(words.length / 200) || 1,
       };
-    }
 
-    function analyzeHeadings(root) {
-      const headings = [];
-      const counts = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
-      const issues = [];
-
-      root.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => {
+      // Headings
+      const headings = [], counts = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 }, headingIssues = [];
+      root.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
         const level = parseInt(h.tagName.charAt(1), 10);
-        const tag = h.tagName.toLowerCase();
-        counts[tag]++;
-        headings.push({ level, tag, text: h.textContent?.trim() || '', id: h.id || '' });
+        counts[h.tagName.toLowerCase()]++;
+        headings.push({ level, tag: h.tagName.toLowerCase(), text: h.textContent?.trim() || '', id: h.id || '' });
       });
-
-      if (counts.h1 === 0) issues.push('Missing H1 heading');
-      else if (counts.h1 > 1) issues.push(`Multiple H1 headings found (${counts.h1})`);
-
+      if (counts.h1 === 0) headingIssues.push('Missing H1 heading');
+      else if (counts.h1 > 1) headingIssues.push(`Multiple H1 headings found (${counts.h1})`);
       let lastLevel = 0;
-      headings.forEach(h => {
-        if (h.level > lastLevel + 1 && lastLevel > 0) issues.push(`Skipped heading level: H${lastLevel} to H${h.level}`);
-        lastLevel = h.level;
-      });
+      headings.forEach(h => { if (h.level > lastLevel + 1 && lastLevel > 0) headingIssues.push(`Skipped heading level: H${lastLevel} to H${h.level}`); lastLevel = h.level; });
 
-      return { headings, counts, total: headings.length, issues, isValid: issues.length === 0 };
-    }
-
-    function analyzeBlocks(root) {
-      const sections = root.querySelectorAll(':scope > div');
-      const blocks = [];
-      const blockSummary = {};
-
-      sections.forEach((section, sectionIndex) => {
+      // Blocks
+      const sections = root.querySelectorAll(':scope > div'), blocks = [], blockSummary = {};
+      sections.forEach((section, i) => {
         section.querySelectorAll(':scope > div[class]').forEach(block => {
-          const classes = Array.from(block.classList);
-          const name = classes[0] || 'unknown';
-          const variants = classes.slice(1);
+          const name = block.classList[0] || 'unknown';
           const textContent = block.textContent?.trim() || '';
-          const contentPreview = textContent.length > 100 ? `${textContent.substring(0, 100)}...` : textContent;
-
-          blocks.push({ name, section: sectionIndex + 1, variants, contentPreview });
+          blocks.push({ name, section: i + 1, variants: Array.from(block.classList).slice(1), contentPreview: textContent.length > 100 ? textContent.substring(0, 100) + '...' : textContent });
           blockSummary[name] = (blockSummary[name] || 0) + 1;
         });
       });
 
-      return {
-        totalBlocks: blocks.length,
-        totalSections: sections.length,
-        blocks,
-        blockNames: [...new Set(blocks.map(b => b.name))],
-        blockSummary,
-      };
-    }
-
-    function analyzeSEO(doc) {
-      const issues = [];
-      const titleEl = doc.querySelector('title');
-      const title = titleEl?.textContent?.trim() || '';
-      const titleLength = title.length;
-
-      if (!title) issues.push('Missing page title');
-      else if (titleLength < 30) issues.push('Title too short (< 30 chars)');
-      else if (titleLength > 60) issues.push('Title too long (> 60 chars)');
-
-      const metaDesc = doc.querySelector('meta[name="description"]');
-      const description = metaDesc?.content?.trim() || '';
-      const descLength = description.length;
-
-      if (!description) issues.push('Missing meta description');
-      else if (descLength < 120) issues.push('Meta description too short (< 120 chars)');
-      else if (descLength > 160) issues.push('Meta description too long (> 160 chars)');
-
+      // SEO
+      const title = doc.querySelector('title')?.textContent?.trim() || '';
+      const description = doc.querySelector('meta[name="description"]')?.content?.trim() || '';
       const canonical = doc.querySelector('link[rel="canonical"]')?.href || '';
-      if (!canonical) issues.push('Missing canonical URL');
-
       const robots = doc.querySelector('meta[name="robots"]')?.content || '';
       const lang = doc.documentElement.lang || '';
-      if (!lang) issues.push('Missing lang attribute');
+      const seoIssues = [];
+      if (!title) seoIssues.push('Missing page title');
+      else if (title.length < 30) seoIssues.push('Title too short (< 30 chars)');
+      else if (title.length > 60) seoIssues.push('Title too long (> 60 chars)');
+      if (!description) seoIssues.push('Missing meta description');
+      else if (description.length < 120) seoIssues.push('Meta description too short (< 120 chars)');
+      else if (description.length > 160) seoIssues.push('Meta description too long (> 160 chars)');
+      if (!canonical) seoIssues.push('Missing canonical URL');
+      if (!lang) seoIssues.push('Missing lang attribute');
 
-      return {
-        title: { content: title, length: titleLength },
-        metaDescription: { content: description, length: descLength },
-        canonical,
-        robots,
-        lang,
-        issues,
-      };
-    }
-
-    function analyzeOpenGraph(doc) {
-      const og = {}, twitter = {}, issues = [];
-
-      doc.querySelectorAll('meta[property^="og:"]').forEach(meta => {
-        og[meta.getAttribute('property').replace('og:', '')] = meta.content;
-      });
-      doc.querySelectorAll('meta[name^="twitter:"]').forEach(meta => {
-        twitter[meta.getAttribute('name').replace('twitter:', '')] = meta.content;
-      });
-
-      if (!og.title) issues.push('Missing og:title');
-      if (!og.description) issues.push('Missing og:description');
-      if (!og.image) issues.push('Missing og:image');
-
+      // Open Graph
+      const og = {}, twitter = {}, ogIssues = [];
+      doc.querySelectorAll('meta[property^="og:"]').forEach(m => og[m.getAttribute('property').replace('og:', '')] = m.content);
+      doc.querySelectorAll('meta[name^="twitter:"]').forEach(m => twitter[m.getAttribute('name').replace('twitter:', '')] = m.content);
+      if (!og.title) ogIssues.push('Missing og:title');
+      if (!og.description) ogIssues.push('Missing og:description');
+      if (!og.image) ogIssues.push('Missing og:image');
       const hasSocialMeta = Object.keys(og).length > 0 || Object.keys(twitter).length > 0;
-      const score = !hasSocialMeta ? 0 : (issues.length === 0 ? 100 : 50);
 
-      return { openGraph: og, twitter, issues, score, hasSocialMeta };
-    }
-
-    function analyzeAccessibility(root) {
+      // Accessibility
       const images = root.querySelectorAll('img');
       let withAlt = 0, withoutAlt = 0, decorative = 0;
+      images.forEach(img => { const alt = img.getAttribute('alt'); if (alt === '') decorative++; else if (alt) withAlt++; else withoutAlt++; });
+      const altCoveragePercent = images.length > 0 ? Math.round(((withAlt + decorative) / images.length) * 100) : 100;
+      const accIssues = [];
+      if (withoutAlt > 0) accIssues.push(`${withoutAlt} images missing alt text`);
 
-      images.forEach(img => {
-        const alt = img.getAttribute('alt');
-        if (alt === '') decorative++;
-        else if (alt) withAlt++;
-        else withoutAlt++;
-      });
-
-      const total = images.length;
-      const altCoveragePercent = total > 0 ? Math.round(((withAlt + decorative) / total) * 100) : 100;
-
-      const issues = [];
-      if (withoutAlt > 0) issues.push(`${withoutAlt} images missing alt text`);
-      if (altCoveragePercent < 100) issues.push('Not all images have alt attributes');
-
-      return {
-        images: { total, withAlt, withoutAlt, decorative, altCoveragePercent },
-        aria: { labels: root.querySelectorAll('[aria-label]').length, roles: root.querySelectorAll('[role]').length },
-        issues,
-        score: altCoveragePercent,
-      };
-    }
-
-    function analyzeLinks(root) {
+      // Links
       const links = root.querySelectorAll('a[href]');
       let internal = 0, external = 0, mailto = 0, tel = 0;
       const externalLinks = [];
-
       links.forEach(link => {
         const href = link.getAttribute('href');
         if (!href) return;
         if (href.startsWith('mailto:')) mailto++;
         else if (href.startsWith('tel:')) tel++;
-        else if (href.startsWith('http') && !href.includes(window.location.host)) {
-          external++;
-          externalLinks.push({ href, text: link.textContent?.trim() || '' });
-        } else internal++;
+        else if (href.startsWith('http') && !href.includes(window.location.host)) { external++; externalLinks.push({ href, text: link.textContent?.trim() || '' }); }
+        else internal++;
       });
 
-      return {
-        total: links.length,
-        internal,
-        external,
-        buttons: root.querySelectorAll('button, a.button, .button').length,
-        mailto,
-        tel,
-        externalLinks,
-      };
-    }
-
-    function analyzeInteractiveElements(root) {
-      return {
-        forms: root.querySelectorAll('form').length,
-        buttons: root.querySelectorAll('button').length,
-        inputs: root.querySelectorAll('input, textarea, select').length,
-        videos: root.querySelectorAll('video').length,
-        iframes: root.querySelectorAll('iframe').length,
-      };
-    }
-
-    function collectAnalytics() {
-      return {
+      // Analytics
+      const analytics = {
         timestamp: new Date().toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         userAgent: navigator.userAgent,
@@ -428,25 +329,22 @@
         screen: { width: window.screen?.width || 0, height: window.screen?.height || 0, colorDepth: window.screen?.colorDepth || 0 },
         viewport: { width: window.innerWidth, height: window.innerHeight },
       };
-    }
 
-    function analyzeDocument(doc, isPlain) {
-      const root = isPlain ? doc.body : (doc.querySelector('main') || doc.body);
       return {
-        contentMetrics: analyzeContent(root),
-        headingStructure: analyzeHeadings(root),
-        blocks: analyzeBlocks(root),
-        seo: analyzeSEO(doc),
-        openGraph: analyzeOpenGraph(doc),
-        accessibility: analyzeAccessibility(root),
-        links: analyzeLinks(root),
-        interactiveElements: analyzeInteractiveElements(root),
-        analytics: collectAnalytics(),
+        contentMetrics,
+        headingStructure: { headings, counts, total: headings.length, issues: headingIssues, isValid: headingIssues.length === 0 },
+        blocks: { totalBlocks: blocks.length, totalSections: sections.length, blocks, blockNames: [...new Set(blocks.map(b => b.name))], blockSummary },
+        seo: { title: { content: title, length: title.length }, metaDescription: { content: description, length: description.length }, canonical, robots, lang, issues: seoIssues },
+        openGraph: { openGraph: og, twitter, issues: ogIssues, score: !hasSocialMeta ? 0 : (ogIssues.length === 0 ? 100 : 50), hasSocialMeta },
+        accessibility: { images: { total: images.length, withAlt, withoutAlt, decorative, altCoveragePercent }, aria: { labels: root.querySelectorAll('[aria-label]').length, roles: root.querySelectorAll('[role]').length }, issues: accIssues, score: altCoveragePercent },
+        links: { total: links.length, internal, external, buttons: root.querySelectorAll('button, a.button, .button').length, mailto, tel, externalLinks },
+        interactiveElements: { forms: root.querySelectorAll('form').length, buttons: root.querySelectorAll('button').length, inputs: root.querySelectorAll('input, textarea, select').length, videos: root.querySelectorAll('video').length, iframes: root.querySelectorAll('iframe').length },
+        analytics,
       };
     }
 
     // ============================================
-    // PAYLOAD BUILDING (Complete Structure)
+    // PAYLOAD BUILDING
     // ============================================
     function buildPayload(ctx, analysis, email, notes = '') {
       const name = ctx.path.split('/').pop() || 'index';
@@ -457,9 +355,17 @@
       }
 
       return {
+        // Basic Info
         title, name, path: '/' + ctx.path, url: ctx.liveUrl, previewUrl: ctx.previewUrl, liveUrl: ctx.liveUrl,
         reviewSubmissionDate: new Date().toISOString(), submittedBy: email || 'unknown',
+        
+        // Environment
         host: ctx.host, env: ctx.env, org: ctx.org, site: ctx.site, ref: ctx.ref, source: 'DA.live Library',
+        
+        // Unique identifier for Data Store lookup
+        pageIdentifier: ctx.pageIdentifier,
+        
+        // Analysis
         contentMetrics: analysis.contentMetrics,
         headingStructure: analysis.headingStructure,
         blocks: analysis.blocks,
@@ -469,13 +375,19 @@
         links: analysis.links,
         interactiveElements: analysis.interactiveElements,
         analytics: analysis.analytics,
+        
+        // Notes
         notes: notes || '',
       };
     }
 
     async function postToWebhook(payload) {
-      log('Sending payload', payload);
-      const res = await fetch(CONFIG.webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      log('Sending payload to Make.com', payload);
+      const res = await fetch(CONFIG.submitWebhookUrl, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(payload) 
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return true;
     }
@@ -488,10 +400,7 @@
     function renderCard(state) {
       const details = document.getElementById('details');
       let content = '';
-      const headerHtml = `
-        <div class="header-bar">
-          <img src="${CONFIG.logoPath}" alt="Agilent Logo" class="logo" />
-        </div>`;
+      const headerHtml = `<div class="header-bar"><img src="${CONFIG.logoPath}" alt="Agilent Logo" class="logo" /></div>`;
 
       if (state.status === 'loading') {
         content = `<div class="notice"><div class="spinner"></div><p class="status-message loading">${state.message}</p></div>`;
@@ -499,34 +408,33 @@
       else if (state.status === 'error') {
         content = `<div class="notice"><p class="status-message error">${state.message}</p><button id="retry-btn" class="btn btn-primary" style="margin-top:12px;">Retry</button><div class="debug-toggle" id="debug-toggle">Show debug info</div><div class="debug-panel" id="debug-panel" style="display:none;"></div></div>`;
       }
-      else if (state.status === 'published') {
-        content = `<div class="notice"><p class="status-message published">Page has been already published.</p>
-          <div class="page-details">
-            <div class="detail-row"><span class="label">Page:</span><span class="value">${state.title}</span></div>
-            <div class="detail-row"><span class="label">Path:</span><span class="value">/${currentContext.path}</span></div>
-            ${state.lastModified ? `<div class="detail-row"><span class="label">Last Published:</span><span class="value">${formatDate(state.lastModified)}</span></div>` : ''}
-          </div>
-          <div class="actions"><a href="${currentContext.liveUrl}" target="_blank" class="btn btn-secondary">View Live</a><button id="submit-anyway-btn" class="btn btn-primary">Send for Review Anyway</button></div></div>`;
-      }
       else if (state.status === 'in-review') {
+        // Page has pending review - DISABLE submit button
         const d = state.data;
-        content = `<p class="status-message in-review">Page review is in progress.</p>
+        content = `
+          <p class="status-message in-review">Page review is in progress.</p>
           <div class="page-details">
-            <div class="detail-row"><span class="label">Title:</span><span class="value">${d.title || d.name}</span></div>
-            <div class="detail-row"><span class="label">Submitted By:</span><span class="value">${d.submittedBy === 'unknown' ? '<span class="muted">unknown</span>' : d.submittedBy}</span></div>
-            <div class="detail-row"><span class="label">Submitted On:</span><span class="value">${formatDate(d.timestamp)}</span></div>
+            <div class="detail-row"><span class="label">Title:</span><span class="value">${d.title || currentContext.path}</span></div>
+            <div class="detail-row"><span class="label">Submitted By:</span><span class="value">${d.submittedBy || 'Unknown'}</span></div>
+            <div class="detail-row"><span class="label">Submitted On:</span><span class="value">${d.submittedDate ? formatDate(d.submittedDate) : 'N/A'}</span></div>
             ${d.notes ? `<div class="detail-row full-width"><span class="label">Notes:</span><span class="value">${d.notes}</span></div>` : ''}
           </div>
-          <div class="actions"><a href="${currentContext.previewUrl}" target="_blank" class="btn btn-secondary">View Preview</a><button id="send-again-btn" class="btn btn-primary">Send Again</button></div>`;
+          <div class="actions">
+            <a href="${currentContext.previewUrl}" target="_blank" class="btn btn-secondary">View Preview</a>
+            <button id="submit-btn" class="btn btn-primary" disabled title="Review already in progress">Submit for Review</button>
+          </div>
+          <p class="info-note">Complete the current review before submitting a new one.</p>`;
       }
       else if (state.status === 'ready') {
+        // Ready to submit - ENABLE submit button
         const a = state.analysis;
         const seoIssues = a.seo?.issues?.length > 0 ? a.seo.issues.join(', ') : 'None';
         const seoClass = a.seo?.issues?.length > 0 ? 'warning' : 'success';
         const blocks = a.blocks?.blockNames?.length > 0 ? a.blocks.blockNames.join(', ') : 'None';
         const storedEmail = getStoredEmail();
 
-        content = `<p class="status-message loading">Ready to submit for review.</p>
+        content = `
+          <p class="status-message loading">Ready to submit for review.</p>
           <div class="page-details">
             <div class="detail-row"><span class="label">Title:</span><span class="value">${state.title}</span></div>
             <div class="detail-row"><span class="label">Name:</span><span class="value">${state.name}</span></div>
@@ -547,44 +455,31 @@
           <div class="actions"><button id="submit-btn" class="btn btn-primary">Submit for Review</button></div>`;
       }
       else if (state.status === 'success') {
+        // Successfully submitted
         const p = state.payload;
-        const seoIssues = p.seo?.issues?.length > 0 ? p.seo.issues.join(', ') : 'None';
-        const seoClass = p.seo?.issues?.length > 0 ? 'warning' : 'success';
-        const blocks = p.blocks?.blockNames?.length > 0 ? p.blocks.blockNames.join(', ') : 'None';
-
-        content = `<p class="status-message success">Review request submitted successfully. Review in progress.</p>
+        content = `
+          <p class="status-message success">Review request submitted successfully!</p>
           <div class="page-details">
             <div class="detail-row"><span class="label">Title:</span><span class="value">${p.title}</span></div>
-            <div class="detail-row"><span class="label">Name:</span><span class="value">${p.name}</span></div>
-            <div class="detail-row"><span class="label">Submitter:</span><span class="value">${p.submittedBy === 'unknown' ? '<span class="muted">unknown</span>' : p.submittedBy}</span></div>
-            <div class="detail-row"><span class="label">Submission Date:</span><span class="value">${formatDate(p.reviewSubmissionDate)}</span></div>
-            <div class="detail-row"><span class="label">SEO Issues:</span><span class="value ${seoClass}">${seoIssues}</span></div>
-            <div class="detail-row"><span class="label">Blocks:</span><span class="value">${p.blocks?.totalBlocks || 0} (${blocks})</span></div>
+            <div class="detail-row"><span class="label">Submitter:</span><span class="value">${p.submittedBy}</span></div>
+            <div class="detail-row"><span class="label">Submitted On:</span><span class="value">${formatDate(p.reviewSubmissionDate)}</span></div>
             ${p.notes ? `<div class="detail-row full-width"><span class="label">Notes:</span><span class="value">${p.notes}</span></div>` : ''}
           </div>
-          <div class="actions"><a href="${p.previewUrl}" target="_blank" class="btn btn-secondary">View Preview</a><button id="send-again-btn" class="btn btn-primary">Send Again</button></div>`;
+          <div class="actions">
+            <a href="${p.previewUrl}" target="_blank" class="btn btn-secondary">View Preview</a>
+          </div>
+          <p class="info-note">Review request has been recorded. Use "Get Page Current Status" to check progress.</p>`;
       }
 
       details.innerHTML = `<div id="review-card">${headerHtml}<div class="content">${content}</div></div>`;
 
+      // Event listeners
       document.getElementById('retry-btn')?.addEventListener('click', init);
-      document.getElementById('send-again-btn')?.addEventListener('click', () => { clearReviewState(currentContext?.path); showReadyState(); });
-      document.getElementById('submit-anyway-btn')?.addEventListener('click', showReadyState);
       document.getElementById('submit-btn')?.addEventListener('click', handleSubmit);
       document.getElementById('debug-toggle')?.addEventListener('click', () => {
         const p = document.getElementById('debug-panel');
         if (p) { p.style.display = p.style.display === 'none' ? 'block' : 'none'; p.textContent = debugLogs.join('\n'); }
       });
-    }
-
-    function showReadyState() {
-      const name = currentContext.path.split('/').pop() || 'index';
-      let title = currentAnalysis.seo?.title?.content || name;
-      if (!title || title === name) {
-        const h1 = currentAnalysis.headingStructure?.headings?.find(h => h.level === 1);
-        if (h1) title = h1.text;
-      }
-      renderCard({ status: 'ready', title, name, analysis: currentAnalysis });
     }
 
     async function handleSubmit() {
@@ -605,7 +500,6 @@
       try {
         const payload = buildPayload(currentContext, currentAnalysis, email, notes);
         await postToWebhook(payload);
-        setReviewState(currentContext.path, { title: payload.title, name: payload.name, submittedBy: email, previewUrl: payload.previewUrl, liveUrl: payload.liveUrl, notes });
         renderCard({ status: 'success', payload });
       } catch (err) {
         log('Submit error', err.message);
@@ -613,42 +507,52 @@
       }
     }
 
+    // ============================================
+    // INITIALIZATION
+    // ============================================
     async function init() {
       renderCard({ status: 'loading', message: 'Initializing…' });
+      
       try {
+        // Step 1: Get page context
         currentContext = await getFullContext();
         if (!currentContext.org || !currentContext.site) {
           renderCard({ status: 'error', message: 'Could not determine page context. Make sure you have a page open.' });
           return;
         }
 
-        const reviewState = getReviewState(currentContext.path);
-        if (reviewState) {
-          log('Found existing review state', reviewState);
-          const status = await checkPageStatus(currentContext);
-          if (status.isPublished && reviewState.timestamp) {
-            const pubDate = status.lastModified ? new Date(status.lastModified) : new Date();
-            if (pubDate > new Date(reviewState.timestamp)) clearReviewState(currentContext.path);
-            else { renderCard({ status: 'in-review', data: reviewState }); return; }
-          } else { renderCard({ status: 'in-review', data: reviewState }); return; }
-        }
-
-        renderCard({ status: 'loading', message: 'Analyzing page…' });
-        const content = await fetchContent(currentContext);
-        if (!content?.html) { renderCard({ status: 'error', message: 'Could not fetch page content. Make sure the page exists.' }); return; }
-
-        contentSource = content.source;
-        const doc = new DOMParser().parseFromString(content.html, 'text/html');
-        currentAnalysis = analyzeDocument(doc, content.isPlain);
-
-        const pageStatus = await checkPageStatus(currentContext);
-        if (pageStatus.isPublished) {
-          const title = currentAnalysis.seo?.title?.content || currentContext.path.split('/').pop() || 'index';
-          renderCard({ status: 'published', title, lastModified: pageStatus.lastModified });
+        // Step 2: Check status from Make.com Data Store FIRST
+        renderCard({ status: 'loading', message: 'Checking review status…' });
+        const statusResponse = await checkReviewStatus(currentContext);
+        
+        if (statusResponse && statusResponse.status === 'in-review') {
+          // Review already in progress - show status and disable submit
+          log('Review in progress', statusResponse);
+          renderCard({ status: 'in-review', data: statusResponse });
           return;
         }
 
-        showReadyState();
+        // Step 3: No active review - analyze page and show form
+        renderCard({ status: 'loading', message: 'Analyzing page…' });
+        const content = await fetchContent(currentContext);
+        if (!content?.html) {
+          renderCard({ status: 'error', message: 'Could not fetch page content. Make sure the page exists.' });
+          return;
+        }
+
+        const doc = new DOMParser().parseFromString(content.html, 'text/html');
+        currentAnalysis = analyzeDocument(doc, content.isPlain);
+
+        // Step 4: Show ready state with form
+        const name = currentContext.path.split('/').pop() || 'index';
+        let title = currentAnalysis?.seo?.title?.content || name;
+        if ((!title || title === name) && currentAnalysis?.headingStructure?.headings?.length) {
+          const h1 = currentAnalysis.headingStructure.headings.find(h => h.level === 1);
+          if (h1) title = h1.text;
+        }
+        
+        renderCard({ status: 'ready', title, name, analysis: currentAnalysis });
+        
       } catch (err) {
         log('Init error', err.message);
         renderCard({ status: 'error', message: `Error: ${err.message}` });
