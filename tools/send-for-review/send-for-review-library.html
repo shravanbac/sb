@@ -11,19 +11,17 @@
       font-family: Arial, Helvetica, sans-serif;
       background-color: #f7f9fb;
       margin: 0;
-      padding: 16px;
+      padding: 0;
       color: #333;
       line-height: 1.5;
     }
-    body.fullscreen { padding: 0; }
-    body.fullscreen #review-card { max-width: 100%; border-radius: 0; min-height: 100vh; }
 
     #review-card {
       background-color: #fff;
       border: 1px solid #d9e1e2;
-      border-radius: 6px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      max-width: 100%;
+      width: 100%;
+      min-height: 100vh;
       overflow: hidden;
     }
     #review-card .header-bar {
@@ -36,49 +34,22 @@
       font-size: 1rem;
     }
     #review-card .header-bar .logo {
-      width: 28px; height: 28px;
-      background: #fff;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      height: 24px;
       margin-right: 10px;
     }
-    #review-card .header-bar .logo svg { width: 20px; height: 20px; fill: #0077c8; }
     #review-card .header-title { flex: 1; }
-    #review-card .header-actions { display: flex; gap: 8px; }
-    #review-card .header-btn {
-      background: rgba(255,255,255,0.2);
-      border: none;
-      color: #fff;
-      width: 28px; height: 28px;
-      border-radius: 4px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    #review-card .header-btn:hover { background: rgba(255,255,255,0.3); }
-    #review-card .header-btn svg { width: 16px; height: 16px; fill: currentColor; }
     #review-card .content { padding: 16px 20px; }
     #review-card strong { color: #004b87; }
     #review-card a { color: #0077c8; font-weight: 500; text-decoration: none; }
     #review-card a:hover { text-decoration: underline; }
 
-    /* Status Messages */
-    .status-message {
-      font-weight: 600;
-      margin-bottom: 16px;
-      padding: 12px 16px;
-      border-radius: 4px;
-    }
+    .status-message { font-weight: 600; margin-bottom: 16px; padding: 12px 16px; border-radius: 4px; }
     .status-message.loading { color: #555; font-style: italic; background-color: #f5f5f5; }
     .status-message.success { color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; }
     .status-message.in-review { color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; }
     .status-message.published { color: #0c5460; background-color: #d1ecf1; border: 1px solid #bee5eb; }
     .status-message.error { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; }
 
-    /* Page Details */
     .page-details { margin: 16px 0; }
     .detail-row { display: flex; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
     .detail-row:last-child { border-bottom: none; }
@@ -90,7 +61,6 @@
     .detail-row .value .muted { background: #e0e0e0; padding: 2px 8px; border-radius: 3px; font-size: 13px; }
     .detail-row.full-width .value { margin-top: 4px; padding: 8px 12px; background-color: #f9f9f9; border-radius: 4px; font-style: italic; }
 
-    /* Form Fields */
     .form-section { margin: 16px 0; padding-top: 16px; border-top: 1px solid #eee; }
     .form-group { margin-bottom: 16px; }
     .form-group:last-child { margin-bottom: 0; }
@@ -104,29 +74,17 @@
       font-family: inherit;
       font-size: 14px;
     }
-    .form-input:focus, .form-textarea:focus {
-      outline: none;
-      border-color: #0077c8;
-      box-shadow: 0 0 0 2px rgba(0,119,200,0.2);
-    }
+    .form-input:focus, .form-textarea:focus { outline: none; border-color: #0077c8; box-shadow: 0 0 0 2px rgba(0,119,200,0.2); }
+    .form-input.error { border-color: #dc3545; }
     .form-textarea { resize: vertical; min-height: 70px; }
     .form-hint { font-size: 12px; color: #666; margin-top: 4px; }
 
-    /* Action Buttons */
     .actions { display: flex; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; }
     .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 10px 20px;
-      font-size: 14px;
-      font-weight: 600;
-      border-radius: 4px;
-      cursor: pointer;
-      text-decoration: none;
-      transition: all 0.2s ease;
-      border: none;
-      flex: 1;
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 10px 20px; font-size: 14px; font-weight: 600;
+      border-radius: 4px; cursor: pointer; text-decoration: none;
+      transition: all 0.2s ease; border: none; flex: 1;
     }
     .btn-primary { background-color: #0077c8; color: #fff; }
     .btn-primary:hover { background-color: #005a9e; }
@@ -134,38 +92,23 @@
     .btn-secondary { background-color: #fff; color: #0077c8; border: 1px solid #0077c8; }
     .btn-secondary:hover { background-color: #f0f7fc; }
 
-    /* Loading */
     .notice { text-align: center; padding: 20px; }
-    .spinner {
-      width: 40px; height: 40px;
-      border: 4px solid #e0e0e0;
-      border-top-color: #0077c8;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 16px;
-    }
+    .spinner { width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #0077c8; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Debug */
     .debug-toggle { font-size: 12px; color: #666; cursor: pointer; margin-top: 12px; text-decoration: underline; }
-    .debug-panel {
-      margin-top: 12px; padding: 10px;
-      background: #fff8e1; border-radius: 4px;
-      font-size: 10px; font-family: monospace;
-      white-space: pre-wrap; word-break: break-all;
-      max-height: 150px; overflow-y: auto;
-    }
+    .debug-panel { margin-top: 12px; padding: 10px; background: #fff8e1; border-radius: 4px; font-size: 10px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto; }
   </style>
 </head>
 <body>
   <div id="details"></div>
-
   <script type="module">
     const CONFIG = {
       webhookUrl: 'https://hook.us2.make.com/d5lqgghlwlcalpy2zw0l7tqukr0u75bd',
       storageKeyPrefix: 'sfr_review_',
       emailStorageKey: 'sfr_user_email',
       defaultRef: 'main',
+      logoPath: './assets/agilent-logo.png',
     };
 
     let debugLogs = [], currentContext = null, currentAnalysis = null, contentSource = null;
@@ -179,36 +122,20 @@
     // ============================================
     // STORAGE
     // ============================================
-    function getStoredEmail() {
-      try { return localStorage.getItem(CONFIG.emailStorageKey) || ''; } catch { return ''; }
-    }
-    function saveEmail(email) {
-      try { localStorage.setItem(CONFIG.emailStorageKey, email); } catch {}
-    }
-    function getReviewStateKey(path) {
-      return `${CONFIG.storageKeyPrefix}${(path || 'index').replace(/[\/\\]/g, '_')}`;
-    }
-    function getReviewState(path) {
-      try { return JSON.parse(localStorage.getItem(getReviewStateKey(path))); } catch { return null; }
-    }
-    function setReviewState(path, state) {
-      localStorage.setItem(getReviewStateKey(path), JSON.stringify({ ...state, timestamp: new Date().toISOString() }));
-    }
-    function clearReviewState(path) {
-      localStorage.removeItem(getReviewStateKey(path));
-    }
+    function getStoredEmail() { try { return localStorage.getItem(CONFIG.emailStorageKey) || ''; } catch { return ''; } }
+    function saveEmail(email) { try { localStorage.setItem(CONFIG.emailStorageKey, email); } catch {} }
+    function getReviewStateKey(path) { return `${CONFIG.storageKeyPrefix}${(path || 'index').replace(/[\/\\]/g, '_')}`; }
+    function getReviewState(path) { try { return JSON.parse(localStorage.getItem(getReviewStateKey(path))); } catch { return null; } }
+    function setReviewState(path, state) { localStorage.setItem(getReviewStateKey(path), JSON.stringify({ ...state, timestamp: new Date().toISOString() })); }
+    function clearReviewState(path) { localStorage.removeItem(getReviewStateKey(path)); }
 
     // ============================================
     // STATUS CHECKS
     // ============================================
     async function checkPageStatus(ctx) {
-      // Check if published (live URL returns 200)
       try {
         const liveRes = await fetch(ctx.liveUrl, { method: 'HEAD', cache: 'no-store' });
-        if (liveRes.ok) {
-          const lastMod = liveRes.headers.get('Last-Modified');
-          return { isPublished: true, lastModified: lastMod };
-        }
+        if (liveRes.ok) return { isPublished: true, lastModified: liveRes.headers.get('Last-Modified') };
       } catch {}
       return { isPublished: false };
     }
@@ -265,12 +192,16 @@
 
       if (ctx.path.includes('tools/send-for-review') || ctx.path.includes('send-for-review-library')) ctx.path = 'index';
       ctx.path = ctx.path.replace(/^\/+/, '').replace(/\.html?$/, '') || 'index';
-      ctx.previewHost = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.page`;
+
+      ctx.host = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.page`;
+      ctx.previewHost = ctx.host;
       ctx.liveHost = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.live`;
       ctx.previewUrl = `https://${ctx.previewHost}/${ctx.path}`;
       ctx.liveUrl = `https://${ctx.liveHost}/${ctx.path}`;
       ctx.plainUrl = `https://${ctx.previewHost}/${ctx.path}.plain.html`;
       ctx.daSourceUrl = `https://admin.da.live/source/${ctx.org}/${ctx.site}/${ctx.path}.html`;
+      ctx.env = 'page';
+
       log('Final context', ctx);
       return ctx;
     }
@@ -299,60 +230,223 @@
     }
 
     // ============================================
-    // CONTENT ANALYSIS
+    // CONTENT ANALYSIS (Full Payload Structure)
     // ============================================
-    function analyzeDocument(doc, isPlain) {
-      const root = isPlain ? doc.body : (doc.querySelector('main') || doc.body);
+    function analyzeContent(root) {
       const text = root?.textContent || '';
-      const words = text.split(/\s+/).filter(w => w.length > 0);
+      const cleanText = text.replace(/\s+/g, ' ').trim();
+      const words = cleanText.split(/\s+/).filter(w => w.length > 0);
+      const sentences = cleanText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+      const paragraphs = root.querySelectorAll('p');
 
-      const contentMetrics = {
+      return {
         wordCount: words.length,
-        characterCount: text.length,
-        paragraphCount: root.querySelectorAll('p').length,
-        readingTimeMinutes: Math.max(1, Math.ceil(words.length / 200)),
+        characterCount: cleanText.length,
+        characterCountNoSpaces: cleanText.replace(/\s/g, '').length,
+        sentenceCount: sentences.length,
+        paragraphCount: paragraphs.length,
+        avgWordsPerSentence: sentences.length > 0 ? Math.round(words.length / sentences.length) : 0,
+        readingTimeMinutes: Math.ceil(words.length / 200) || 1,
       };
+    }
 
-      const headings = [], counts = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 }, headingIssues = [];
-      root.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
-        const level = parseInt(h.tagName[1]);
-        counts[`h${level}`]++;
-        headings.push({ level, text: h.textContent?.trim().slice(0, 80) || '' });
+    function analyzeHeadings(root) {
+      const headings = [];
+      const counts = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
+      const issues = [];
+
+      root.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => {
+        const level = parseInt(h.tagName.charAt(1), 10);
+        const tag = h.tagName.toLowerCase();
+        counts[tag]++;
+        headings.push({ level, tag, text: h.textContent?.trim() || '', id: h.id || '' });
       });
-      if (counts.h1 === 0) headingIssues.push('Missing H1 heading');
-      else if (counts.h1 > 1) headingIssues.push(`Multiple H1 headings (${counts.h1})`);
 
-      const blocks = [], blockSummary = {};
-      root.querySelectorAll(':scope > div').forEach((section, i) => {
+      if (counts.h1 === 0) issues.push('Missing H1 heading');
+      else if (counts.h1 > 1) issues.push(`Multiple H1 headings found (${counts.h1})`);
+
+      let lastLevel = 0;
+      headings.forEach(h => {
+        if (h.level > lastLevel + 1 && lastLevel > 0) issues.push(`Skipped heading level: H${lastLevel} to H${h.level}`);
+        lastLevel = h.level;
+      });
+
+      return { headings, counts, total: headings.length, issues, isValid: issues.length === 0 };
+    }
+
+    function analyzeBlocks(root) {
+      const sections = root.querySelectorAll(':scope > div');
+      const blocks = [];
+      const blockSummary = {};
+
+      sections.forEach((section, sectionIndex) => {
         section.querySelectorAll(':scope > div[class]').forEach(block => {
-          const name = block.classList[0] || 'unknown';
-          blocks.push({ name, section: i + 1 });
+          const classes = Array.from(block.classList);
+          const name = classes[0] || 'unknown';
+          const variants = classes.slice(1);
+          const textContent = block.textContent?.trim() || '';
+          const contentPreview = textContent.length > 100 ? `${textContent.substring(0, 100)}...` : textContent;
+
+          blocks.push({ name, section: sectionIndex + 1, variants, contentPreview });
           blockSummary[name] = (blockSummary[name] || 0) + 1;
         });
       });
 
-      const title = doc.querySelector('title')?.textContent?.trim() || '';
-      const desc = doc.querySelector('meta[name="description"]')?.content?.trim() || '';
-      const lang = doc.documentElement?.lang || '';
-      const seoIssues = [];
-      if (!title) seoIssues.push('Missing page title');
-      else if (title.length < 30) seoIssues.push('Title too short (< 30 chars)');
-      else if (title.length > 60) seoIssues.push('Title too long (> 60 chars)');
-      if (!desc) seoIssues.push('Missing meta description');
-      else if (desc.length < 120) seoIssues.push('Meta description too short (< 120 chars)');
-      else if (desc.length > 160) seoIssues.push('Meta description too long (> 160 chars)');
-      if (!lang) seoIssues.push('Missing lang attribute');
+      return {
+        totalBlocks: blocks.length,
+        totalSections: sections.length,
+        blocks,
+        blockNames: [...new Set(blocks.map(b => b.name))],
+        blockSummary,
+      };
+    }
+
+    function analyzeSEO(doc) {
+      const issues = [];
+      const titleEl = doc.querySelector('title');
+      const title = titleEl?.textContent?.trim() || '';
+      const titleLength = title.length;
+
+      if (!title) issues.push('Missing page title');
+      else if (titleLength < 30) issues.push('Title too short (< 30 chars)');
+      else if (titleLength > 60) issues.push('Title too long (> 60 chars)');
+
+      const metaDesc = doc.querySelector('meta[name="description"]');
+      const description = metaDesc?.content?.trim() || '';
+      const descLength = description.length;
+
+      if (!description) issues.push('Missing meta description');
+      else if (descLength < 120) issues.push('Meta description too short (< 120 chars)');
+      else if (descLength > 160) issues.push('Meta description too long (> 160 chars)');
+
+      const canonical = doc.querySelector('link[rel="canonical"]')?.href || '';
+      if (!canonical) issues.push('Missing canonical URL');
+
+      const robots = doc.querySelector('meta[name="robots"]')?.content || '';
+      const lang = doc.documentElement.lang || '';
+      if (!lang) issues.push('Missing lang attribute');
 
       return {
-        contentMetrics,
-        headingStructure: { headings, counts, issues: headingIssues },
-        blocks: { totalBlocks: blocks.length, blocks, blockNames: [...new Set(blocks.map(b => b.name))], blockSummary },
-        seo: { title: { content: title, length: title.length }, metaDescription: { content: desc, length: desc.length }, lang, issues: seoIssues },
+        title: { content: title, length: titleLength },
+        metaDescription: { content: description, length: descLength },
+        canonical,
+        robots,
+        lang,
+        issues,
+      };
+    }
+
+    function analyzeOpenGraph(doc) {
+      const og = {}, twitter = {}, issues = [];
+
+      doc.querySelectorAll('meta[property^="og:"]').forEach(meta => {
+        og[meta.getAttribute('property').replace('og:', '')] = meta.content;
+      });
+      doc.querySelectorAll('meta[name^="twitter:"]').forEach(meta => {
+        twitter[meta.getAttribute('name').replace('twitter:', '')] = meta.content;
+      });
+
+      if (!og.title) issues.push('Missing og:title');
+      if (!og.description) issues.push('Missing og:description');
+      if (!og.image) issues.push('Missing og:image');
+
+      const hasSocialMeta = Object.keys(og).length > 0 || Object.keys(twitter).length > 0;
+      const score = !hasSocialMeta ? 0 : (issues.length === 0 ? 100 : 50);
+
+      return { openGraph: og, twitter, issues, score, hasSocialMeta };
+    }
+
+    function analyzeAccessibility(root) {
+      const images = root.querySelectorAll('img');
+      let withAlt = 0, withoutAlt = 0, decorative = 0;
+
+      images.forEach(img => {
+        const alt = img.getAttribute('alt');
+        if (alt === '') decorative++;
+        else if (alt) withAlt++;
+        else withoutAlt++;
+      });
+
+      const total = images.length;
+      const altCoveragePercent = total > 0 ? Math.round(((withAlt + decorative) / total) * 100) : 100;
+
+      const issues = [];
+      if (withoutAlt > 0) issues.push(`${withoutAlt} images missing alt text`);
+      if (altCoveragePercent < 100) issues.push('Not all images have alt attributes');
+
+      return {
+        images: { total, withAlt, withoutAlt, decorative, altCoveragePercent },
+        aria: { labels: root.querySelectorAll('[aria-label]').length, roles: root.querySelectorAll('[role]').length },
+        issues,
+        score: altCoveragePercent,
+      };
+    }
+
+    function analyzeLinks(root) {
+      const links = root.querySelectorAll('a[href]');
+      let internal = 0, external = 0, mailto = 0, tel = 0;
+      const externalLinks = [];
+
+      links.forEach(link => {
+        const href = link.getAttribute('href');
+        if (!href) return;
+        if (href.startsWith('mailto:')) mailto++;
+        else if (href.startsWith('tel:')) tel++;
+        else if (href.startsWith('http') && !href.includes(window.location.host)) {
+          external++;
+          externalLinks.push({ href, text: link.textContent?.trim() || '' });
+        } else internal++;
+      });
+
+      return {
+        total: links.length,
+        internal,
+        external,
+        buttons: root.querySelectorAll('button, a.button, .button').length,
+        mailto,
+        tel,
+        externalLinks,
+      };
+    }
+
+    function analyzeInteractiveElements(root) {
+      return {
+        forms: root.querySelectorAll('form').length,
+        buttons: root.querySelectorAll('button').length,
+        inputs: root.querySelectorAll('input, textarea, select').length,
+        videos: root.querySelectorAll('video').length,
+        iframes: root.querySelectorAll('iframe').length,
+      };
+    }
+
+    function collectAnalytics() {
+      return {
+        timestamp: new Date().toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        screen: { width: window.screen?.width || 0, height: window.screen?.height || 0, colorDepth: window.screen?.colorDepth || 0 },
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+      };
+    }
+
+    function analyzeDocument(doc, isPlain) {
+      const root = isPlain ? doc.body : (doc.querySelector('main') || doc.body);
+      return {
+        contentMetrics: analyzeContent(root),
+        headingStructure: analyzeHeadings(root),
+        blocks: analyzeBlocks(root),
+        seo: analyzeSEO(doc),
+        openGraph: analyzeOpenGraph(doc),
+        accessibility: analyzeAccessibility(root),
+        links: analyzeLinks(root),
+        interactiveElements: analyzeInteractiveElements(root),
+        analytics: collectAnalytics(),
       };
     }
 
     // ============================================
-    // PAYLOAD & WEBHOOK
+    // PAYLOAD BUILDING (Complete Structure)
     // ============================================
     function buildPayload(ctx, analysis, email, notes = '') {
       const name = ctx.path.split('/').pop() || 'index';
@@ -361,16 +455,26 @@
         const h1 = analysis.headingStructure?.headings?.find(h => h.level === 1);
         if (h1) title = h1.text;
       }
+
       return {
-        title, name, path: '/' + ctx.path, previewUrl: ctx.previewUrl, liveUrl: ctx.liveUrl,
+        title, name, path: '/' + ctx.path, url: ctx.liveUrl, previewUrl: ctx.previewUrl, liveUrl: ctx.liveUrl,
         reviewSubmissionDate: new Date().toISOString(), submittedBy: email || 'unknown',
-        org: ctx.org, site: ctx.site, ref: ctx.ref, source: 'DA.live Library', contentSource: contentSource || 'unknown',
-        contentMetrics: analysis.contentMetrics, headingStructure: analysis.headingStructure, blocks: analysis.blocks,
-        seo: analysis.seo, notes: notes || '',
+        host: ctx.host, env: ctx.env, org: ctx.org, site: ctx.site, ref: ctx.ref, source: 'DA.live Library',
+        contentMetrics: analysis.contentMetrics,
+        headingStructure: analysis.headingStructure,
+        blocks: analysis.blocks,
+        seo: analysis.seo,
+        openGraph: analysis.openGraph,
+        accessibility: analysis.accessibility,
+        links: analysis.links,
+        interactiveElements: analysis.interactiveElements,
+        analytics: analysis.analytics,
+        notes: notes || '',
       };
     }
 
     async function postToWebhook(payload) {
+      log('Sending payload', payload);
       const res = await fetch(CONFIG.webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return true;
@@ -381,65 +485,40 @@
     // ============================================
     function formatDate(iso) { try { return new Date(iso).toLocaleString(); } catch { return iso; } }
 
-    function toggleFullscreen() {
-      document.body.classList.toggle('fullscreen');
-      try { window.parent.postMessage({ type: 'sfr-toggle-fullscreen' }, '*'); } catch {}
-    }
-
     function renderCard(state) {
       const details = document.getElementById('details');
       let content = '';
-
       const headerHtml = `
         <div class="header-bar">
-          <div class="logo"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18l6.9 3.45L12 11.09 5.1 7.63 12 4.18zM4 8.82l7 3.5v7.36l-7-3.5V8.82zm9 10.86v-7.36l7-3.5v7.36l-7 3.5z"/></svg></div>
+          <img src="${CONFIG.logoPath}" alt="Agilent Logo" class="logo" />
           <span class="header-title">Send For Review</span>
-          <div class="header-actions">
-            <button class="header-btn" id="fullscreen-btn" title="Toggle fullscreen">
-              <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
-            </button>
-          </div>
         </div>`;
 
       if (state.status === 'loading') {
         content = `<div class="notice"><div class="spinner"></div><p class="status-message loading">${state.message}</p></div>`;
       }
       else if (state.status === 'error') {
-        content = `<div class="notice">
-          <p class="status-message error">${state.message}</p>
-          <button id="retry-btn" class="btn btn-primary" style="margin-top:12px;">Retry</button>
-          <div class="debug-toggle" id="debug-toggle">Show debug info</div>
-          <div class="debug-panel" id="debug-panel" style="display:none;"></div>
-        </div>`;
+        content = `<div class="notice"><p class="status-message error">${state.message}</p><button id="retry-btn" class="btn btn-primary" style="margin-top:12px;">Retry</button><div class="debug-toggle" id="debug-toggle">Show debug info</div><div class="debug-panel" id="debug-panel" style="display:none;"></div></div>`;
       }
       else if (state.status === 'published') {
-        content = `<div class="notice">
-          <p class="status-message published">Page has been already published.</p>
+        content = `<div class="notice"><p class="status-message published">Page has been already published.</p>
           <div class="page-details">
             <div class="detail-row"><span class="label">Page:</span><span class="value">${state.title}</span></div>
             <div class="detail-row"><span class="label">Path:</span><span class="value">/${currentContext.path}</span></div>
             ${state.lastModified ? `<div class="detail-row"><span class="label">Last Published:</span><span class="value">${formatDate(state.lastModified)}</span></div>` : ''}
           </div>
-          <div class="actions">
-            <a href="${currentContext.liveUrl}" target="_blank" class="btn btn-secondary">View Live</a>
-            <button id="submit-anyway-btn" class="btn btn-primary">Send for Review Anyway</button>
-          </div>
-        </div>`;
+          <div class="actions"><a href="${currentContext.liveUrl}" target="_blank" class="btn btn-secondary">View Live</a><button id="submit-anyway-btn" class="btn btn-primary">Send for Review Anyway</button></div></div>`;
       }
       else if (state.status === 'in-review') {
         const d = state.data;
-        content = `
-          <p class="status-message in-review">Page review is in progress.</p>
+        content = `<p class="status-message in-review">Page review is in progress.</p>
           <div class="page-details">
             <div class="detail-row"><span class="label">Title:</span><span class="value">${d.title || d.name}</span></div>
             <div class="detail-row"><span class="label">Submitted By:</span><span class="value">${d.submittedBy === 'unknown' ? '<span class="muted">unknown</span>' : d.submittedBy}</span></div>
             <div class="detail-row"><span class="label">Submitted On:</span><span class="value">${formatDate(d.timestamp)}</span></div>
             ${d.notes ? `<div class="detail-row full-width"><span class="label">Notes:</span><span class="value">${d.notes}</span></div>` : ''}
           </div>
-          <div class="actions">
-            <a href="${currentContext.previewUrl}" target="_blank" class="btn btn-secondary">View Preview</a>
-            <button id="send-again-btn" class="btn btn-primary">Send Again</button>
-          </div>`;
+          <div class="actions"><a href="${currentContext.previewUrl}" target="_blank" class="btn btn-secondary">View Preview</a><button id="send-again-btn" class="btn btn-primary">Send Again</button></div>`;
       }
       else if (state.status === 'ready') {
         const a = state.analysis;
@@ -448,8 +527,7 @@
         const blocks = a.blocks?.blockNames?.length > 0 ? a.blocks.blockNames.join(', ') : 'None';
         const storedEmail = getStoredEmail();
 
-        content = `
-          <p class="status-message loading">Ready to submit for review.</p>
+        content = `<p class="status-message loading">Ready to submit for review.</p>
           <div class="page-details">
             <div class="detail-row"><span class="label">Title:</span><span class="value">${state.title}</span></div>
             <div class="detail-row"><span class="label">Name:</span><span class="value">${state.name}</span></div>
@@ -467,9 +545,7 @@
               <textarea id="notes-input" class="form-textarea" placeholder="Enter any additional notes or instructions for this review..."></textarea>
             </div>
           </div>
-          <div class="actions">
-            <button id="submit-btn" class="btn btn-primary">Submit for Review</button>
-          </div>`;
+          <div class="actions"><button id="submit-btn" class="btn btn-primary">Submit for Review</button></div>`;
       }
       else if (state.status === 'success') {
         const p = state.payload;
@@ -477,8 +553,7 @@
         const seoClass = p.seo?.issues?.length > 0 ? 'warning' : 'success';
         const blocks = p.blocks?.blockNames?.length > 0 ? p.blocks.blockNames.join(', ') : 'None';
 
-        content = `
-          <p class="status-message success">Review request submitted successfully. Review in progress.</p>
+        content = `<p class="status-message success">Review request submitted successfully. Review in progress.</p>
           <div class="page-details">
             <div class="detail-row"><span class="label">Title:</span><span class="value">${p.title}</span></div>
             <div class="detail-row"><span class="label">Name:</span><span class="value">${p.name}</span></div>
@@ -488,16 +563,11 @@
             <div class="detail-row"><span class="label">Blocks:</span><span class="value">${p.blocks?.totalBlocks || 0} (${blocks})</span></div>
             ${p.notes ? `<div class="detail-row full-width"><span class="label">Notes:</span><span class="value">${p.notes}</span></div>` : ''}
           </div>
-          <div class="actions">
-            <a href="${p.previewUrl}" target="_blank" class="btn btn-secondary">View Preview</a>
-            <button id="send-again-btn" class="btn btn-primary">Send Again</button>
-          </div>`;
+          <div class="actions"><a href="${p.previewUrl}" target="_blank" class="btn btn-secondary">View Preview</a><button id="send-again-btn" class="btn btn-primary">Send Again</button></div>`;
       }
 
       details.innerHTML = `<div id="review-card">${headerHtml}<div class="content">${content}</div></div>`;
 
-      // Event listeners
-      document.getElementById('fullscreen-btn')?.addEventListener('click', toggleFullscreen);
       document.getElementById('retry-btn')?.addEventListener('click', init);
       document.getElementById('send-again-btn')?.addEventListener('click', () => { clearReviewState(currentContext?.path); showReadyState(); });
       document.getElementById('submit-anyway-btn')?.addEventListener('click', showReadyState);
@@ -546,7 +616,6 @@
 
     async function init() {
       renderCard({ status: 'loading', message: 'Initializing…' });
-
       try {
         currentContext = await getFullContext();
         if (!currentContext.org || !currentContext.site) {
@@ -554,40 +623,25 @@
           return;
         }
 
-        // Check if already in review
         const reviewState = getReviewState(currentContext.path);
         if (reviewState) {
           log('Found existing review state', reviewState);
-          // Check if published since review
           const status = await checkPageStatus(currentContext);
           if (status.isPublished && reviewState.timestamp) {
             const pubDate = status.lastModified ? new Date(status.lastModified) : new Date();
-            const reviewDate = new Date(reviewState.timestamp);
-            if (pubDate > reviewDate) {
-              clearReviewState(currentContext.path);
-            } else {
-              renderCard({ status: 'in-review', data: reviewState });
-              return;
-            }
-          } else {
-            renderCard({ status: 'in-review', data: reviewState });
-            return;
-          }
+            if (pubDate > new Date(reviewState.timestamp)) clearReviewState(currentContext.path);
+            else { renderCard({ status: 'in-review', data: reviewState }); return; }
+          } else { renderCard({ status: 'in-review', data: reviewState }); return; }
         }
 
-        // Fetch and analyze content
         renderCard({ status: 'loading', message: 'Analyzing page…' });
         const content = await fetchContent(currentContext);
-        if (!content?.html) {
-          renderCard({ status: 'error', message: 'Could not fetch page content. Make sure the page exists.' });
-          return;
-        }
+        if (!content?.html) { renderCard({ status: 'error', message: 'Could not fetch page content. Make sure the page exists.' }); return; }
 
         contentSource = content.source;
         const doc = new DOMParser().parseFromString(content.html, 'text/html');
         currentAnalysis = analyzeDocument(doc, content.isPlain);
 
-        // Check if already published
         const pageStatus = await checkPageStatus(currentContext);
         if (pageStatus.isPublished) {
           const title = currentAnalysis.seo?.title?.content || currentContext.path.split('/').pop() || 'index';
