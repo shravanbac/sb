@@ -7,326 +7,121 @@
   <link rel="icon" href="data:,">
   <style>
     :root {
-      --color-primary: #1a56db;
-      --color-primary-dark: #1e40af;
-      --color-success: #059669;
-      --color-error: #dc2626;
-      --color-warning: #d97706;
-      --color-text: #1f2937;
-      --color-text-light: #6b7280;
-      --color-bg: #f8fafc;
-      --color-card: #ffffff;
-      --color-border: #e5e7eb;
+      --color-primary: #00607a;
+      --color-primary-dark: #004d61;
+      --color-success: #2e7d32;
+      --color-success-bg: #e8f5e9;
+      --color-error: #c62828;
+      --color-error-bg: #ffebee;
+      --color-warning: #c67100;
+      --color-warning-bg: #fff8e1;
+      --color-text: #333333;
+      --color-text-light: #666666;
+      --color-bg: #ffffff;
+      --color-border: #e0e0e0;
     }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       background: var(--color-bg);
       color: var(--color-text);
       line-height: 1.5;
-      padding: 16px;
       min-height: 100vh;
     }
-
-    .review-card {
-      background: var(--color-card);
-      border: 1px solid var(--color-border);
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-      max-width: 440px;
-      margin: 0 auto;
-      overflow: hidden;
-    }
-
+    .review-card { background: var(--color-bg); max-width: 480px; margin: 0 auto; }
     .review-header {
       display: flex;
       align-items: center;
-      gap: 10px;
-      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-      padding: 14px 18px;
+      gap: 12px;
+      background: var(--color-primary);
+      padding: 12px 16px;
       color: #fff;
     }
-
-    .logo {
+    .logo { display: flex; align-items: center; gap: 6px; }
+    .logo-icon {
+      width: 28px; height: 28px;
       background: #fff;
-      color: var(--color-primary);
-      font-weight: 700;
-      font-size: 14px;
-      padding: 4px 10px;
-      border-radius: 6px;
-    }
-
-    .title { font-weight: 600; font-size: 15px; }
-
-    .review-section-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--color-text-light);
-      padding: 12px 18px 8px;
-      border-bottom: 1px solid var(--color-border);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .status-content { padding: 16px 18px; }
-
-    .status-header {
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .status-content.success .status-header { color: var(--color-success); }
-    .status-content.success .status-header::before {
-      content: "✓";
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      background: #d1fae5;
-      color: var(--color-success);
-      border-radius: 50%;
-      font-size: 14px;
-    }
-
-    .status-content.error .status-header { color: var(--color-error); }
-    .status-content.error .status-header::before {
-      content: "✕";
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      background: #fee2e2;
-      color: var(--color-error);
-      border-radius: 50%;
-      font-size: 14px;
-    }
-
-    .status-content.in-review .status-header { color: var(--color-warning); }
-    .status-content.in-review .status-header::before {
-      content: "⏳";
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      background: #fef3c7;
-      border-radius: 50%;
-      font-size: 14px;
-    }
-
-    .status-content.loading { text-align: center; padding: 24px 18px; }
-
-    .status-message {
-      color: var(--color-text-light);
-      font-size: 14px;
+      border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
     }
-
-    .spinner {
-      width: 20px;
-      height: 20px;
-      border: 2px solid var(--color-border);
-      border-top-color: var(--color-primary);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
+    .logo-icon svg { width: 20px; height: 20px; fill: var(--color-primary); }
+    .logo-text { font-size: 13px; font-weight: 600; color: #fff; opacity: 0.9; }
+    .logo-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.3); margin: 0 4px; }
+    .title { font-weight: 600; font-size: 15px; color: #fff; }
+    .status-content { padding: 16px; }
+    .status-banner {
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      line-height: 1.5;
     }
-
+    .status-banner.success { background: var(--color-success-bg); color: var(--color-success); border-left: 4px solid var(--color-success); }
+    .status-banner.error { background: var(--color-error-bg); color: var(--color-error); border-left: 4px solid var(--color-error); }
+    .status-banner.warning { background: var(--color-warning-bg); color: var(--color-warning); border-left: 4px solid var(--color-warning); }
+    .status-banner.info { background: #e3f2fd; color: #1565c0; border-left: 4px solid #1565c0; }
+    .status-banner-title { font-weight: 600; margin-bottom: 2px; }
+    .status-banner-text { font-weight: 400; }
+    .status-content.loading { text-align: center; padding: 32px 16px; }
+    .status-message { color: var(--color-text-light); font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .spinner { width: 20px; height: 20px; border: 2px solid var(--color-border); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    .status-details {
-      background: #f9fafb;
-      border-radius: 8px;
-      padding: 12px 14px;
-      margin-top: 12px;
-    }
-
-    .status-details p {
-      font-size: 13px;
-      margin-bottom: 8px;
-      word-break: break-word;
-    }
-
-    .status-details p:last-child { margin-bottom: 0; }
-    .status-details strong { color: var(--color-primary-dark); }
-    .status-details a { color: var(--color-primary); text-decoration: none; }
-    .status-details a:hover { text-decoration: underline; }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 10px 20px;
-      font-size: 14px;
-      font-weight: 600;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      margin-top: 16px;
-      width: 100%;
-    }
-
-    .btn-primary { background: var(--color-primary); color: #fff; }
-    .btn-primary:hover { background: var(--color-primary-dark); }
-    .btn-secondary { background: #fff; color: var(--color-primary); border: 1px solid var(--color-primary); }
-    .btn-secondary:hover { background: #f0f7ff; }
-
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid var(--color-border);
-      font-size: 13px;
-    }
+    .info-table { width: 100%; }
+    .info-row { display: flex; padding: 10px 0; border-bottom: 1px solid var(--color-border); font-size: 14px; }
     .info-row:last-child { border-bottom: none; }
-    .info-label { color: var(--color-text-light); }
-    .info-value { color: var(--color-text); font-weight: 500; text-align: right; max-width: 60%; word-break: break-word; }
+    .info-label { color: var(--color-text); font-weight: 600; min-width: 140px; flex-shrink: 0; }
+    .info-value { color: var(--color-text); word-break: break-word; }
     .info-value.warning { color: var(--color-warning); }
     .info-value.success { color: var(--color-success); }
-
-    .notes-section {
-      margin-top: 12px;
+    .info-value .muted { background: #e0e0e0; padding: 2px 8px; border-radius: 3px; font-size: 13px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 10px 20px; font-size: 14px; font-weight: 600;
+      border-radius: 4px; border: none; cursor: pointer;
+      transition: all 0.2s ease; margin-top: 16px;
     }
-
-    .notes-label {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--color-text);
-      margin-bottom: 6px;
-      display: block;
-    }
-
-    .notes-input {
-      width: 100%;
-      padding: 10px 12px;
-      font-size: 13px;
-      border: 1px solid var(--color-border);
-      border-radius: 6px;
-      resize: vertical;
-      min-height: 60px;
-      font-family: inherit;
-    }
-
-    .notes-input:focus {
-      outline: none;
-      border-color: var(--color-primary);
-      box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.1);
-    }
-
-    .notes-display {
-      background: #fff;
-      border: 1px solid var(--color-border);
-      border-radius: 6px;
-      padding: 10px 12px;
-      font-size: 13px;
-      color: var(--color-text);
-      font-style: italic;
-      margin-top: 4px;
-    }
-
-    .debug-panel {
-      margin-top: 12px;
-      padding: 10px;
-      background: #fef3c7;
-      border-radius: 6px;
-      font-size: 10px;
-      font-family: monospace;
-      white-space: pre-wrap;
-      word-break: break-all;
-      max-height: 150px;
-      overflow-y: auto;
-    }
-
-    .toggle-debug {
-      font-size: 11px;
-      color: var(--color-text-light);
-      cursor: pointer;
-      margin-top: 12px;
-      text-decoration: underline;
-    }
-
-    .in-review-message {
-      font-size: 13px;
-      color: var(--color-text-light);
-      margin-bottom: 12px;
-      line-height: 1.6;
-    }
-
-    .btn-group {
-      display: flex;
-      gap: 10px;
-      margin-top: 16px;
-    }
-
-    .btn-group .btn {
-      margin-top: 0;
-      flex: 1;
-    }
-
-    .source-badge {
-      display: inline-block;
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: #e0e7ff;
-      color: #3730a3;
-      font-weight: 500;
-      margin-left: 8px;
-    }
-
-    .source-badge.unpreviewed {
-      background: #fef3c7;
-      color: #92400e;
-    }
+    .btn-primary { background: var(--color-primary); color: #fff; width: 100%; }
+    .btn-primary:hover { background: var(--color-primary-dark); }
+    .btn-secondary { background: #fff; color: var(--color-primary); border: 1px solid var(--color-primary); }
+    .btn-secondary:hover { background: #f5f5f5; }
+    .btn-group { display: flex; gap: 10px; margin-top: 16px; }
+    .btn-group .btn { margin-top: 0; flex: 1; }
+    .notes-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--color-border); }
+    .notes-label { font-size: 14px; font-weight: 600; color: var(--color-text); margin-bottom: 8px; display: block; }
+    .notes-input { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid var(--color-border); border-radius: 4px; resize: vertical; min-height: 70px; font-family: inherit; }
+    .notes-input:focus { outline: none; border-color: var(--color-primary); }
+    .notes-display { font-size: 14px; color: var(--color-text); font-style: italic; margin-top: 4px; padding: 8px 12px; background: #f5f5f5; border-radius: 4px; }
+    .debug-panel { margin-top: 12px; padding: 10px; background: #fff8e1; border-radius: 4px; font-size: 10px; font-family: monospace; white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto; }
+    .toggle-debug { font-size: 12px; color: var(--color-text-light); cursor: pointer; margin-top: 12px; text-decoration: underline; }
+    .source-badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 3px; background: #fff8e1; color: #c67100; font-weight: 500; margin-left: 8px; }
   </style>
 </head>
 <body>
   <div id="details">
     <div class="review-card">
       <div class="review-header">
-        <span class="logo">SB</span>
-        <span class="title">Tech Labs</span>
-      </div>
-      <div class="review-section-title">Send For Review</div>
-      <div class="status-content loading">
-        <div class="status-message">
-          <div class="spinner"></div>
-          <span>Initializing...</span>
+        <div class="logo">
+          <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18l6.9 3.45L12 11.09 5.1 7.63 12 4.18zM4 8.82l7 3.5v7.36l-7-3.5V8.82zm9 10.86v-7.36l7-3.5v7.36l-7 3.5z"/></svg></div>
+          <span class="logo-text">SB Tech Labs</span>
         </div>
+        <div class="logo-divider"></div>
+        <span class="title">Send For Review</span>
+      </div>
+      <div class="status-content loading">
+        <div class="status-message"><div class="spinner"></div><span>Initializing...</span></div>
       </div>
     </div>
   </div>
-
   <script type="module">
-    // ============================================
-    // SEND FOR REVIEW - DA.live Library Plugin
-    // Complete version with all features
-    // ============================================
-
-    console.log('[SFR Library] Starting...');
-
     const CONFIG = {
       webhookUrl: 'https://hook.us2.make.com/d5lqgghlwlcalpy2zw0l7tqukr0u75bd',
       storageKeyPrefix: 'sfr_review_',
       emailStorageKey: 'sfr_user_email',
       defaultRef: 'main',
     };
-
-    let debugLogs = [];
-    let currentContext = null;
-    let currentAnalysis = null;
-    let contentSource = null;
+    let debugLogs = [], currentContext = null, currentAnalysis = null, contentSource = null;
 
     function log(msg, data = null) {
       const ts = new Date().toISOString().slice(11, 19);
@@ -334,855 +129,294 @@
       debugLogs.push(data ? `[${ts}] ${msg}: ${JSON.stringify(data).slice(0, 200)}` : `[${ts}] ${msg}`);
     }
 
-    // ============================================
-    // STORAGE - Email & Review State
-    // ============================================
-
-    // Try to get email from parent window via postMessage
     async function getEmailFromParent() {
       return new Promise((resolve) => {
-        const timeout = setTimeout(() => {
-          log('Parent email request timed out');
-          resolve(null);
-        }, 2000);
-
+        const timeout = setTimeout(() => resolve(null), 2000);
         const handler = (event) => {
           if (event.data?.type === 'da-user-email' && event.data?.email) {
             clearTimeout(timeout);
             window.removeEventListener('message', handler);
-            log('Got email from parent via postMessage', event.data.email);
             resolve(event.data.email);
           }
         };
-
         window.addEventListener('message', handler);
-        
-        // Request email from parent
-        try {
-          window.parent.postMessage({ type: 'request-user-email' }, '*');
-        } catch (e) {
-          clearTimeout(timeout);
-          window.removeEventListener('message', handler);
-          resolve(null);
-        }
+        try { window.parent.postMessage({ type: 'request-user-email' }, '*'); }
+        catch (e) { clearTimeout(timeout); window.removeEventListener('message', handler); resolve(null); }
       });
     }
 
     function getStoredEmail() {
-      let email = null;
-      
-      // Method 1: Check sessionStorage for Adobe IMS profile (as shown in screenshot)
-      try {
-        const imsProfileSession = sessionStorage.getItem('adobeid_ims_profile');
-        if (imsProfileSession) {
-          const parsed = JSON.parse(imsProfileSession);
-          if (parsed?.email) {
-            email = parsed.email;
-            log('Found email in sessionStorage adobeid_ims_profile', email);
-            return email;
-          }
-        }
-      } catch (e) {
-        log('Error reading sessionStorage adobeid_ims_profile', e.message);
+      const sources = [
+        () => JSON.parse(sessionStorage.getItem('adobeid_ims_profile'))?.email,
+        () => JSON.parse(localStorage.getItem('adobeid_ims_profile'))?.email,
+        () => sessionStorage.getItem(CONFIG.emailStorageKey),
+        () => localStorage.getItem(CONFIG.emailStorageKey),
+        () => JSON.parse(sessionStorage.getItem('da_user'))?.email,
+      ];
+      for (const src of sources) {
+        try { const e = src(); if (e?.includes('@')) return e; } catch {}
       }
-
-      // Method 2: Check localStorage for Adobe IMS profile
-      try {
-        const imsProfileLocal = localStorage.getItem('adobeid_ims_profile');
-        if (imsProfileLocal) {
-          const parsed = JSON.parse(imsProfileLocal);
-          if (parsed?.email) {
-            email = parsed.email;
-            log('Found email in localStorage adobeid_ims_profile', email);
-            return email;
-          }
-        }
-      } catch (e) {
-        log('Error reading localStorage adobeid_ims_profile', e.message);
-      }
-
-      // Method 3: Try our own saved email key
-      email = sessionStorage.getItem(CONFIG.emailStorageKey);
-      if (email && email.includes('@')) {
-        log('Found email in sessionStorage sfr key', email);
-        return email;
-      }
-      
-      email = localStorage.getItem(CONFIG.emailStorageKey);
-      if (email && email.includes('@')) {
-        log('Found email in localStorage sfr key', email);
-        return email;
-      }
-
-      // Method 4: Check for DA user in sessionStorage
-      try {
-        const daUser = sessionStorage.getItem('da_user');
-        if (daUser) {
-          const parsed = JSON.parse(daUser);
-          if (parsed?.email) {
-            log('Found email in da_user', parsed.email);
-            return parsed.email;
-          }
-        }
-      } catch (e) {}
-
-      // Method 5: Try to access from parent window's sessionStorage (cross-origin might block)
-      try {
-        if (window.parent !== window) {
-          const parentImsProfile = window.parent.sessionStorage?.getItem('adobeid_ims_profile');
-          if (parentImsProfile) {
-            const parsed = JSON.parse(parentImsProfile);
-            if (parsed?.email) {
-              log('Found email in parent sessionStorage', parsed.email);
-              return parsed.email;
-            }
-          }
-        }
-      } catch (e) {
-        log('Cannot access parent sessionStorage (expected)', e.message);
-      }
-
-      log('No email found in storage');
       return null;
     }
 
-    function saveEmail(email) {
-      sessionStorage.setItem(CONFIG.emailStorageKey, email);
-      localStorage.setItem(CONFIG.emailStorageKey, email);
-    }
-
-    function getReviewStateKey(path) {
-      return `${CONFIG.storageKeyPrefix}${(path || 'index').replace(/[\/\\]/g, '_')}`;
-    }
-
-    function getReviewState(path) {
-      try {
-        const data = localStorage.getItem(getReviewStateKey(path));
-        return data ? JSON.parse(data) : null;
-      } catch (e) {
-        return null;
-      }
-    }
-
-    function setReviewState(path, state) {
-      const key = getReviewStateKey(path);
-      localStorage.setItem(key, JSON.stringify({
-        ...state,
-        timestamp: new Date().toISOString(),
-      }));
-    }
-
-    function clearReviewState(path) {
-      localStorage.removeItem(getReviewStateKey(path));
-    }
+    function getReviewStateKey(path) { return `${CONFIG.storageKeyPrefix}${(path || 'index').replace(/[\/\\]/g, '_')}`; }
+    function getReviewState(path) { try { return JSON.parse(localStorage.getItem(getReviewStateKey(path))); } catch { return null; } }
+    function setReviewState(path, state) { localStorage.setItem(getReviewStateKey(path), JSON.stringify({ ...state, timestamp: new Date().toISOString() })); }
+    function clearReviewState(path) { localStorage.removeItem(getReviewStateKey(path)); }
 
     async function checkIfPublished(liveUrl, reviewTimestamp) {
       try {
         const res = await fetch(liveUrl, { method: 'HEAD', cache: 'no-store' });
         const lastMod = res.headers.get('Last-Modified');
-        if (lastMod && reviewTimestamp) {
-          return new Date(lastMod) > new Date(reviewTimestamp);
-        }
+        if (lastMod && reviewTimestamp) return new Date(lastMod) > new Date(reviewTimestamp);
         return res.ok;
-      } catch (e) {
-        return false;
-      }
+      } catch { return false; }
     }
 
-    // ============================================
-    // CONTEXT DETECTION
-    // ============================================
-
     function getContextFromURLParams() {
-      const params = new URLSearchParams(window.location.search);
-      return {
-        ref: params.get('ref') || '',
-        site: params.get('site') || params.get('repo') || '',
-        org: params.get('org') || params.get('owner') || '',
-        path: params.get('path') || '',
-      };
+      const p = new URLSearchParams(window.location.search);
+      return { ref: p.get('ref') || '', site: p.get('site') || p.get('repo') || '', org: p.get('org') || p.get('owner') || '', path: p.get('path') || '' };
     }
 
     function getContextFromReferrer() {
-      const referrer = document.referrer;
-      if (!referrer) return null;
-
+      if (!document.referrer) return null;
       try {
-        const url = new URL(referrer);
-        
-        // DA.live: da.live/edit#/org/repo/path
+        const url = new URL(document.referrer);
         const daMatch = url.href.match(/da\.live\/edit#\/([^\/]+)\/([^\/]+)\/?(.*)?/);
-        if (daMatch) {
-          log('Found DA.live referrer', { org: daMatch[1], site: daMatch[2], path: daMatch[3] });
-          return {
-            org: daMatch[1],
-            site: daMatch[2],
-            path: daMatch[3] || 'index',
-            ref: 'main',
-            source: 'da.live-referrer'
-          };
-        }
-
-        // AEM: ref--site--org.aem.page
+        if (daMatch) return { org: daMatch[1], site: daMatch[2], path: daMatch[3] || 'index', ref: 'main', source: 'da.live-referrer' };
         const aemMatch = url.host.match(/^([^-]+)--([^-]+)--([^.]+)\.aem\.(page|live)$/);
-        if (aemMatch) {
-          log('Found AEM referrer', { ref: aemMatch[1], site: aemMatch[2], org: aemMatch[3] });
-          return {
-            ref: aemMatch[1],
-            site: aemMatch[2],
-            org: aemMatch[3],
-            path: url.pathname.replace(/^\//, '') || 'index',
-            source: 'aem-referrer'
-          };
-        }
-      } catch (e) {
-        log('Referrer parse error', e.message);
-      }
+        if (aemMatch) return { ref: aemMatch[1], site: aemMatch[2], org: aemMatch[3], path: url.pathname.replace(/^\//, '') || 'index', source: 'aem-referrer' };
+      } catch {}
       return null;
     }
 
     async function getContextFromDASDK() {
       try {
-        log('Loading DA SDK...');
         const DA_SDK = await import('https://da.live/nx/utils/sdk.js');
         const sdk = await DA_SDK.default;
-        
-        log('DA SDK result', { 
-          hasContext: !!sdk?.context,
-          context: sdk?.context,
-        });
-
-        if (sdk?.context) {
-          // The SDK should provide the user email from the DA.live session
-          const email = sdk.context.email || sdk.context.user?.email || '';
-          log('SDK email', email);
-          
-          return {
-            org: sdk.context.org || sdk.context.owner || '',
-            site: sdk.context.repo || '',
-            ref: sdk.context.ref || 'main',
-            path: sdk.context.path || 'index',
-            email: email,
-            source: 'da-sdk'
-          };
-        }
-      } catch (e) {
-        log('DA SDK error', e.message);
-      }
+        if (sdk?.context) return {
+          org: sdk.context.org || sdk.context.owner || '',
+          site: sdk.context.repo || '',
+          ref: sdk.context.ref || 'main',
+          path: sdk.context.path || 'index',
+          email: sdk.context.email || sdk.context.user?.email || '',
+          source: 'da-sdk'
+        };
+      } catch {}
       return null;
     }
 
     async function getFullContext() {
-      log('Getting full context...');
-      
       const urlParams = getContextFromURLParams();
-      log('URL params', urlParams);
-      
       const referrerCtx = getContextFromReferrer();
-      log('Referrer context', referrerCtx);
-      
       const sdkCtx = await getContextFromDASDK();
-      log('SDK context', sdkCtx);
+      let email = sdkCtx?.email || getStoredEmail() || await getEmailFromParent() || '';
 
-      // Try to get email from various sources
-      let email = sdkCtx?.email || '';
-      if (!email) {
-        email = getStoredEmail() || '';
-      }
-      if (!email) {
-        email = await getEmailFromParent() || '';
-      }
-      log('Final email', email);
-
-      // Merge contexts with priority: SDK > Referrer > URL params
       const ctx = {
         ref: sdkCtx?.ref || referrerCtx?.ref || urlParams.ref || CONFIG.defaultRef,
         site: sdkCtx?.site || referrerCtx?.site || urlParams.site || '',
         org: sdkCtx?.org || referrerCtx?.org || urlParams.org || '',
         path: sdkCtx?.path || referrerCtx?.path || urlParams.path || 'index',
-        email: email,
+        email,
         source: sdkCtx?.source || referrerCtx?.source || 'url-params',
       };
-
-      // CRITICAL: Clean path - don't analyze the plugin itself!
-      if (ctx.path.includes('tools/send-for-review') || ctx.path.includes('send-for-review-library')) {
-        log('Path was plugin itself, resetting to index');
-        ctx.path = 'index';
-      }
+      if (ctx.path.includes('tools/send-for-review') || ctx.path.includes('send-for-review-library')) ctx.path = 'index';
       ctx.path = ctx.path.replace(/^\/+/, '').replace(/\.html?$/, '') || 'index';
-
-      // Build URLs
       ctx.previewHost = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.page`;
       ctx.liveHost = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.live`;
       ctx.previewUrl = `https://${ctx.previewHost}/${ctx.path}`;
       ctx.liveUrl = `https://${ctx.liveHost}/${ctx.path}`;
       ctx.plainUrl = `https://${ctx.previewHost}/${ctx.path}.plain.html`;
       ctx.daSourceUrl = `https://admin.da.live/source/${ctx.org}/${ctx.site}/${ctx.path}.html`;
-
       log('Final context', ctx);
       return ctx;
     }
 
-    // ============================================
-    // CONTENT FETCHING
-    // ============================================
-
     async function fetchContent(ctx) {
-      log('Fetching content...');
-
-      // Strategy 1: Full page from AEM preview (has all metadata and proper block structure)
-      try {
-        log('Trying full page', ctx.previewUrl);
-        const res = await fetch(ctx.previewUrl, { cache: 'no-store' });
-        if (res.ok) {
-          const html = await res.text();
-          log('Full page success', { length: html.length });
-          return { html, source: 'full-page', isPlain: false };
-        }
-        log('Full page failed', res.status);
-      } catch (e) {
-        log('Full page error', e.message);
+      const strategies = [
+        { url: ctx.previewUrl, source: 'full-page', isPlain: false },
+        { url: ctx.plainUrl, source: 'plain.html', isPlain: true },
+        { url: ctx.daSourceUrl, source: 'da-source', isPlain: true },
+      ];
+      for (const s of strategies) {
+        try {
+          log(`Trying ${s.source}`, s.url);
+          const res = await fetch(s.url, { cache: 'no-store' });
+          if (res.ok) {
+            const html = await res.text();
+            log(`${s.source} success`, { length: html.length });
+            return { html, source: s.source, isPlain: s.isPlain };
+          }
+          log(`${s.source} failed`, res.status);
+        } catch (e) { log(`${s.source} error`, e.message); }
       }
-
-      // Strategy 2: .plain.html from AEM preview (CORS-friendly fallback)
-      try {
-        log('Trying .plain.html', ctx.plainUrl);
-        const res = await fetch(ctx.plainUrl, { cache: 'no-store' });
-        if (res.ok) {
-          const html = await res.text();
-          log('.plain.html success', { length: html.length });
-          return { html, source: 'plain.html', isPlain: true };
-        }
-        log('.plain.html failed', res.status);
-      } catch (e) {
-        log('.plain.html error', e.message);
-      }
-
-      // Strategy 3: DA.live source (works for unpreviewed pages)
-      try {
-        const daSourceUrl = ctx.daSourceUrl;
-        log('Trying DA source', daSourceUrl);
-        const res = await fetch(daSourceUrl, { cache: 'no-store' });
-        if (res.ok) {
-          const html = await res.text();
-          log('DA source success', { length: html.length });
-          return { html, source: 'da-source', isPlain: true };
-        }
-        log('DA source failed', res.status);
-      } catch (e) {
-        log('DA source error', e.message);
-      }
-
       return null;
     }
 
-    // ============================================
-    // CONTENT ANALYSIS
-    // ============================================
-
     function analyzeDocument(doc, isPlain) {
-      const contentRoot = isPlain ? doc.body : (doc.querySelector('main') || doc.body);
-      const text = contentRoot?.textContent || '';
-
-      // Content Metrics
+      const root = isPlain ? doc.body : (doc.querySelector('main') || doc.body);
+      const text = root?.textContent || '';
       const words = text.split(/\s+/).filter(w => w.length > 0);
       const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 5);
+
       const contentMetrics = {
         wordCount: words.length,
         characterCount: text.length,
-        characterCountNoSpaces: text.replace(/\s/g, '').length,
-        sentenceCount: sentences.length,
-        paragraphCount: contentRoot.querySelectorAll('p').length,
-        avgWordsPerSentence: sentences.length > 0 ? Math.round(words.length / sentences.length) : 0,
+        paragraphCount: root.querySelectorAll('p').length,
         readingTimeMinutes: Math.max(1, Math.ceil(words.length / 200)),
       };
 
-      // Heading Structure
       const headings = [];
       const counts = { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 };
       const headingIssues = [];
-
-      contentRoot.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => {
+      root.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
         const level = parseInt(h.tagName[1]);
         counts[`h${level}`]++;
-        headings.push({
-          level,
-          tag: h.tagName.toLowerCase(),
-          text: (h.textContent?.trim() || '').slice(0, 80),
-          id: h.id || '',
-        });
+        headings.push({ level, text: h.textContent?.trim().slice(0, 80) || '' });
       });
-
       if (counts.h1 === 0) headingIssues.push('Missing H1 heading');
-      else if (counts.h1 > 1) headingIssues.push(`Multiple H1 headings found (${counts.h1})`);
+      else if (counts.h1 > 1) headingIssues.push(`Multiple H1 headings (${counts.h1})`);
+      const headingStructure = { headings, counts, issues: headingIssues };
 
-      // Check for skipped levels
-      let lastLevel = 0;
-      headings.forEach(h => {
-        if (h.level > lastLevel + 1 && lastLevel > 0) {
-          headingIssues.push(`Skipped heading level: H${lastLevel} to H${h.level}`);
-        }
-        lastLevel = h.level;
-      });
-
-      const headingStructure = { headings, counts, total: headings.length, issues: headingIssues, isValid: headingIssues.length === 0 };
-
-      // EDS Blocks Analysis
-      const blocks = [];
-      const blockSummary = {};
-      const sections = contentRoot.querySelectorAll(':scope > div');
-
-      sections.forEach((section, sectionIndex) => {
+      const blocks = [], blockSummary = {};
+      root.querySelectorAll(':scope > div').forEach((section, i) => {
         section.querySelectorAll(':scope > div[class]').forEach(block => {
-          const classes = Array.from(block.classList);
-          const name = classes[0] || 'unknown';
-          const variants = classes.slice(1).filter(c => c !== 'block');
-
-          // Get content preview
-          const textContent = block.textContent?.trim() || '';
-          const contentPreview = textContent.length > 100 ? `${textContent.substring(0, 100)}...` : textContent;
-
-          blocks.push({
-            name,
-            section: sectionIndex + 1,
-            variants,
-            contentPreview,
-          });
-
+          const name = block.classList[0] || 'unknown';
+          blocks.push({ name, section: i + 1 });
           blockSummary[name] = (blockSummary[name] || 0) + 1;
         });
       });
+      const blocksData = { totalBlocks: blocks.length, blocks, blockNames: [...new Set(blocks.map(b => b.name))], blockSummary };
 
-      const blockNames = [...new Set(blocks.map(b => b.name))];
-      const blocksData = {
-        totalBlocks: blocks.length,
-        totalSections: sections.length,
-        blocks,
-        blockNames,
-        blockSummary,
-      };
-
-      // SEO Analysis
-      const titleEl = doc.querySelector('title');
-      const title = titleEl?.textContent?.trim() || '';
-      const titleLength = title.length;
-
-      const metaDesc = doc.querySelector('meta[name="description"]');
-      const description = metaDesc?.content?.trim() || '';
-      const descLength = description.length;
-
-      const canonical = doc.querySelector('link[rel="canonical"]')?.href || '';
-      const robots = doc.querySelector('meta[name="robots"]')?.content || '';
+      const title = doc.querySelector('title')?.textContent?.trim() || '';
+      const desc = doc.querySelector('meta[name="description"]')?.content?.trim() || '';
       const lang = doc.documentElement?.lang || '';
-
       const seoIssues = [];
       if (!title) seoIssues.push('Missing page title');
-      else if (titleLength < 30) seoIssues.push('Title too short (< 30 chars)');
-      else if (titleLength > 60) seoIssues.push('Title too long (> 60 chars)');
-
-      if (!description) seoIssues.push('Missing meta description');
-      else if (descLength < 120) seoIssues.push('Meta description too short (< 120 chars)');
-      else if (descLength > 160) seoIssues.push('Meta description too long (> 160 chars)');
-
-      if (!canonical) seoIssues.push('Missing canonical URL');
+      else if (title.length < 30) seoIssues.push('Title too short (< 30 chars)');
+      else if (title.length > 60) seoIssues.push('Title too long (> 60 chars)');
+      if (!desc) seoIssues.push('Missing meta description');
+      else if (desc.length < 120) seoIssues.push('Meta description too short (< 120 chars)');
+      else if (desc.length > 160) seoIssues.push('Meta description too long (> 160 chars)');
       if (!lang) seoIssues.push('Missing lang attribute');
+      const seo = { title: { content: title, length: title.length }, metaDescription: { content: desc, length: desc.length }, lang, issues: seoIssues };
 
-      const seo = {
-        title: { content: title, length: titleLength },
-        metaDescription: { content: description, length: descLength },
-        canonical,
-        robots,
-        lang,
-        issues: seoIssues,
-      };
+      const images = root.querySelectorAll('img');
+      let withAlt = 0, withoutAlt = 0;
+      images.forEach(img => { if (img.getAttribute('alt')) withAlt++; else withoutAlt++; });
+      const accessibility = { images: { total: images.length, withAlt, withoutAlt }, issues: withoutAlt > 0 ? [`${withoutAlt} images missing alt text`] : [] };
 
-      // Open Graph
-      const og = {};
-      const twitter = {};
-      doc.querySelectorAll('meta[property^="og:"]').forEach(meta => {
-        const prop = meta.getAttribute('property').replace('og:', '');
-        og[prop] = meta.content;
-      });
-      doc.querySelectorAll('meta[name^="twitter:"]').forEach(meta => {
-        const name = meta.getAttribute('name').replace('twitter:', '');
-        twitter[name] = meta.content;
-      });
-
-      const ogIssues = [];
-      if (!og.title) ogIssues.push('Missing og:title');
-      if (!og.description) ogIssues.push('Missing og:description');
-      if (!og.image) ogIssues.push('Missing og:image');
-
-      const hasSocialMeta = Object.keys(og).length > 0 || Object.keys(twitter).length > 0;
-      let ogScore = 0;
-      if (hasSocialMeta) ogScore = ogIssues.length === 0 ? 100 : 50;
-
-      const openGraph = { openGraph: og, twitter, issues: ogIssues, score: ogScore, hasSocialMeta };
-
-      // Accessibility
-      const images = contentRoot.querySelectorAll('img');
-      let withAlt = 0;
-      let withoutAlt = 0;
-      let decorative = 0;
-
-      images.forEach(img => {
-        const alt = img.getAttribute('alt');
-        if (alt === '') decorative++;
-        else if (alt) withAlt++;
-        else withoutAlt++;
-      });
-
-      const totalImages = images.length;
-      const altCoveragePercent = totalImages > 0 ? Math.round(((withAlt + decorative) / totalImages) * 100) : 100;
-
-      const accIssues = [];
-      if (withoutAlt > 0) accIssues.push(`${withoutAlt} images missing alt text`);
-      if (altCoveragePercent < 100) accIssues.push('Not all images have alt attributes');
-
-      const accessibility = {
-        images: { total: totalImages, withAlt, withoutAlt, decorative, altCoveragePercent },
-        aria: {
-          labels: contentRoot.querySelectorAll('[aria-label]').length,
-          roles: contentRoot.querySelectorAll('[role]').length,
-        },
-        issues: accIssues,
-        score: altCoveragePercent,
-      };
-
-      // Links
-      const links = contentRoot.querySelectorAll('a[href]');
-      let internal = 0;
-      let external = 0;
-      let mailto = 0;
-      let tel = 0;
-      const externalLinks = [];
-
-      links.forEach(link => {
-        const href = link.getAttribute('href');
-        if (!href) return;
-        if (href.startsWith('mailto:')) mailto++;
-        else if (href.startsWith('tel:')) tel++;
-        else if (href.startsWith('http') && !href.includes(window.location.host)) {
-          external++;
-          externalLinks.push({ href, text: link.textContent?.trim() || '' });
-        } else {
-          internal++;
-        }
-      });
-
-      const buttons = contentRoot.querySelectorAll('button, a.button, .button').length;
-
-      const linksData = {
-        total: links.length,
-        internal,
-        external,
-        buttons,
-        mailto,
-        tel,
-        externalLinks,
-      };
-
-      // Interactive Elements
-      const interactiveElements = {
-        forms: contentRoot.querySelectorAll('form').length,
-        buttons: contentRoot.querySelectorAll('button').length,
-        inputs: contentRoot.querySelectorAll('input, textarea, select').length,
-        videos: contentRoot.querySelectorAll('video').length,
-        iframes: contentRoot.querySelectorAll('iframe').length,
-      };
-
-      // Analytics
-      const analytics = {
-        timestamp: new Date().toISOString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        userAgent: navigator.userAgent,
-        language: navigator.language,
-        screen: {
-          width: window.screen?.width || 0,
-          height: window.screen?.height || 0,
-          colorDepth: window.screen?.colorDepth || 0,
-        },
-        viewport: {
-          width: window.innerWidth,
-          height: window.innerHeight,
-        },
-      };
-
-      return {
-        contentMetrics,
-        headingStructure,
-        blocks: blocksData,
-        seo,
-        openGraph,
-        accessibility,
-        links: linksData,
-        interactiveElements,
-        analytics,
-      };
+      return { contentMetrics, headingStructure, blocks: blocksData, seo, accessibility, openGraph: {}, links: {}, interactiveElements: {}, analytics: { timestamp: new Date().toISOString() } };
     }
-
-    // ============================================
-    // PAYLOAD & WEBHOOK
-    // ============================================
 
     function buildPayload(ctx, analysis, email, notes = '') {
       const name = ctx.path.split('/').pop() || 'index';
-      
-      // Get title from SEO or headings
       let title = analysis.seo?.title?.content || name;
       if (!title || title === name) {
         const h1 = analysis.headingStructure?.headings?.find(h => h.level === 1);
         if (h1) title = h1.text;
       }
-
       return {
-        // Basic Info
-        title,
-        name,
-        path: '/' + ctx.path,
-        url: ctx.liveUrl,
-        previewUrl: ctx.previewUrl,
-        liveUrl: ctx.liveUrl,
-        reviewSubmissionDate: new Date().toISOString(),
-        submittedBy: email || 'unknown',
-
-        // Environment
-        host: ctx.previewHost,
-        env: 'page',
-        org: ctx.org,
-        site: ctx.site,
-        ref: ctx.ref,
-        source: 'DA.live Library',
-        contentSource: contentSource || 'unknown',
-
-        // Analysis Results
-        contentMetrics: analysis.contentMetrics,
-        headingStructure: analysis.headingStructure,
-        blocks: analysis.blocks,
-        seo: analysis.seo,
-        openGraph: analysis.openGraph,
-        accessibility: analysis.accessibility,
-        links: analysis.links,
-        interactiveElements: analysis.interactiveElements,
-        analytics: analysis.analytics,
-
-        // Notes
-        notes: notes || '',
+        title, name, path: '/' + ctx.path, previewUrl: ctx.previewUrl, liveUrl: ctx.liveUrl,
+        reviewSubmissionDate: new Date().toISOString(), submittedBy: email || 'unknown',
+        org: ctx.org, site: ctx.site, ref: ctx.ref, source: 'DA.live Library', contentSource: contentSource || 'unknown',
+        contentMetrics: analysis.contentMetrics, headingStructure: analysis.headingStructure, blocks: analysis.blocks,
+        seo: analysis.seo, accessibility: analysis.accessibility, notes: notes || '',
       };
     }
 
     async function postToWebhook(payload) {
-      log('Sending to webhook...');
-      const res = await fetch(CONFIG.webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(CONFIG.webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      log('Webhook success');
       return true;
     }
 
-    // ============================================
-    // UI
-    // ============================================
-
-    function formatDate(iso) {
-      try {
-        return new Date(iso).toLocaleString();
-      } catch (e) {
-        return iso;
-      }
-    }
-
-    function getSourceBadge(source) {
-      if (source === 'da-source') {
-        return '<span class="source-badge unpreviewed">Unpreviewed</span>';
-      }
-      return '';
-    }
+    function formatDate(iso) { try { return new Date(iso).toLocaleString(); } catch { return iso; } }
 
     function render(state) {
       const details = document.getElementById('details');
       let content = '';
 
       if (state.status === 'loading') {
-        content = `
-          <div class="status-content loading">
-            <div class="status-message">
-              <div class="spinner"></div>
-              <span>${state.message}</span>
-            </div>
-          </div>`;
+        content = `<div class="status-content loading"><div class="status-message"><div class="spinner"></div><span>${state.message}</span></div></div>`;
       }
       else if (state.status === 'in-review') {
-        const data = state.data;
-        content = `
-          <div class="status-content in-review">
-            <div class="status-header">Page Already In Review</div>
-            <p class="in-review-message">
-              This page has been sent for review. If you want to send it again with updates, please click "Send Again".
-            </p>
-            <div class="status-details">
-              <div class="info-row">
-                <span class="info-label">Title</span>
-                <span class="info-value">${data.title || data.name}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Submitted By</span>
-                <span class="info-value">${data.submittedBy}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Submitted On</span>
-                <span class="info-value">${formatDate(data.timestamp)}</span>
-              </div>
-              ${data.notes ? `
-              <div class="info-row" style="flex-direction: column; align-items: flex-start;">
-                <span class="info-label">Notes</span>
-                <div class="notes-display">${data.notes}</div>
-              </div>
-              ` : ''}
-              <p style="margin-top:12px"><a href="${data.previewUrl}" target="_blank">Open Preview →</a></p>
-            </div>
-            <div class="btn-group">
-              <button class="btn btn-secondary" id="btn-view-preview">View Preview</button>
-              <button class="btn btn-primary" id="btn-send-again">Send Again</button>
-            </div>
-          </div>`;
+        const d = state.data;
+        content = `<div class="status-content">
+          <div class="status-banner warning"><div class="status-banner-title">Page already in review.</div><div class="status-banner-text">Click "Send Again" to resubmit with updates.</div></div>
+          <div class="info-table">
+            <div class="info-row"><span class="info-label">Title:</span><span class="info-value">${d.title || d.name}</span></div>
+            <div class="info-row"><span class="info-label">Submitted By:</span><span class="info-value">${d.submittedBy === 'unknown' ? '<span class="muted">unknown</span>' : d.submittedBy}</span></div>
+            <div class="info-row"><span class="info-label">Submitted On:</span><span class="info-value">${formatDate(d.timestamp)}</span></div>
+            ${d.notes ? `<div class="info-row" style="flex-direction:column;"><span class="info-label">Notes:</span><div class="notes-display">${d.notes}</div></div>` : ''}
+          </div>
+          <div class="btn-group"><button class="btn btn-secondary" id="btn-view-preview">View Preview</button><button class="btn btn-primary" id="btn-send-again">Send Again</button></div>
+        </div>`;
       }
       else if (state.status === 'ready') {
-        const analysis = state.analysis;
-        const seoIssues = analysis.seo?.issues?.length > 0 ? analysis.seo.issues.join(', ') : 'None';
-        const seoClass = analysis.seo?.issues?.length > 0 ? 'warning' : 'success';
-        const blocks = analysis.blocks?.blockNames?.length > 0 ? analysis.blocks.blockNames.join(', ') : 'None';
-        const sourceBadge = getSourceBadge(contentSource);
-
-        content = `
-          <div class="status-content">
-            <div class="status-header" style="color: var(--color-primary);">Ready to Submit ${sourceBadge}</div>
-            <div class="status-details">
-              <div class="info-row">
-                <span class="info-label">Title</span>
-                <span class="info-value">${state.title}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Name</span>
-                <span class="info-value">${state.name}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">SEO Issues</span>
-                <span class="info-value ${seoClass}">${seoIssues}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Blocks</span>
-                <span class="info-value">${analysis.blocks?.totalBlocks || 0} (${blocks})</span>
-              </div>
-              ${contentSource === 'da-source' ? `
-              <div class="info-row">
-                <span class="info-label">Note</span>
-                <span class="info-value warning">Page not yet previewed in AEM</span>
-              </div>
-              ` : ''}
-            </div>
-            <div class="notes-section">
-              <label class="notes-label">Notes (Optional)</label>
-              <textarea class="notes-input" id="notes-input" placeholder="Enter any additional notes for this review submission..."></textarea>
-            </div>
-            <button class="btn btn-primary" id="btn-submit">Submit for Review</button>
-          </div>`;
+        const a = state.analysis;
+        const seoIssues = a.seo?.issues?.length > 0 ? a.seo.issues.join(', ') : 'None';
+        const seoClass = a.seo?.issues?.length > 0 ? 'warning' : 'success';
+        const blocks = a.blocks?.blockNames?.length > 0 ? a.blocks.blockNames.join(', ') : 'None';
+        const badge = contentSource === 'da-source' ? '<span class="source-badge">Unpreviewed</span>' : '';
+        content = `<div class="status-content">
+          <div class="status-banner info"><div class="status-banner-title">Ready to submit for review. ${badge}</div></div>
+          <div class="info-table">
+            <div class="info-row"><span class="info-label">Title:</span><span class="info-value">${state.title}</span></div>
+            <div class="info-row"><span class="info-label">Name:</span><span class="info-value">${state.name}</span></div>
+            <div class="info-row"><span class="info-label">SEO Issues:</span><span class="info-value ${seoClass}">${seoIssues}</span></div>
+            <div class="info-row"><span class="info-label">Blocks:</span><span class="info-value">${a.blocks?.totalBlocks || 0} (${blocks})</span></div>
+          </div>
+          <div class="notes-section"><label class="notes-label">Notes (Optional)</label><textarea class="notes-input" id="notes-input" placeholder="Enter any additional notes..."></textarea></div>
+          <button class="btn btn-primary" id="btn-submit">Submit for Review</button>
+        </div>`;
       }
       else if (state.status === 'success') {
         const p = state.payload;
         const seoIssues = p.seo?.issues?.length > 0 ? p.seo.issues.join(', ') : 'None';
         const seoClass = p.seo?.issues?.length > 0 ? 'warning' : 'success';
         const blocks = p.blocks?.blockNames?.length > 0 ? p.blocks.blockNames.join(', ') : 'None';
-        const date = formatDate(p.reviewSubmissionDate);
-
-        content = `
-          <div class="status-content success">
-            <div class="status-header">Review Submitted Successfully!</div>
-            <div class="status-details">
-              <div class="info-row">
-                <span class="info-label">Title</span>
-                <span class="info-value">${p.title}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Name</span>
-                <span class="info-value">${p.name}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Submitter</span>
-                <span class="info-value">${p.submittedBy}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Submission Date</span>
-                <span class="info-value">${date}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">SEO Issues</span>
-                <span class="info-value ${seoClass}">${seoIssues}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Blocks</span>
-                <span class="info-value">${p.blocks?.totalBlocks || 0} (${blocks})</span>
-              </div>
-              ${p.notes ? `
-              <div class="info-row" style="flex-direction: column; align-items: flex-start;">
-                <span class="info-label">Notes</span>
-                <div class="notes-display">${p.notes}</div>
-              </div>
-              ` : ''}
-              <p style="margin-top:12px"><a href="${p.previewUrl}" target="_blank">Open Preview →</a></p>
-            </div>
-            <button class="btn btn-primary" id="btn-send-again">Send Again</button>
-          </div>`;
+        content = `<div class="status-content">
+          <div class="status-banner success"><div class="status-banner-title">Review request submitted successfully.</div><div class="status-banner-text">Review in progress.</div></div>
+          <div class="info-table">
+            <div class="info-row"><span class="info-label">Title:</span><span class="info-value">${p.title}</span></div>
+            <div class="info-row"><span class="info-label">Name:</span><span class="info-value">${p.name}</span></div>
+            <div class="info-row"><span class="info-label">Submitter:</span><span class="info-value">${p.submittedBy === 'unknown' ? '<span class="muted">unknown</span>' : p.submittedBy}</span></div>
+            <div class="info-row"><span class="info-label">Submission Date:</span><span class="info-value">${formatDate(p.reviewSubmissionDate)}</span></div>
+            <div class="info-row"><span class="info-label">SEO Issues:</span><span class="info-value ${seoClass}">${seoIssues}</span></div>
+            <div class="info-row"><span class="info-label">Blocks:</span><span class="info-value">${p.blocks?.totalBlocks || 0} (${blocks})</span></div>
+            ${p.notes ? `<div class="info-row" style="flex-direction:column;"><span class="info-label">Notes:</span><div class="notes-display">${p.notes}</div></div>` : ''}
+          </div>
+          <button class="btn btn-primary" id="btn-send-again">Send Again</button>
+        </div>`;
       }
       else if (state.status === 'error') {
-        content = `
-          <div class="status-content error">
-            <div class="status-header">${state.message}</div>
-            <button class="btn btn-primary" id="btn-retry">Retry</button>
-            <div class="toggle-debug" id="toggle-debug">Show debug info</div>
-            <div class="debug-panel" id="debug-panel" style="display:none;"></div>
-          </div>`;
+        content = `<div class="status-content">
+          <div class="status-banner error"><div class="status-banner-title">Error</div><div class="status-banner-text">${state.message}</div></div>
+          <button class="btn btn-primary" id="btn-retry">Retry</button>
+          <div class="toggle-debug" id="toggle-debug">Show debug info</div>
+          <div class="debug-panel" id="debug-panel" style="display:none;"></div>
+        </div>`;
       }
 
-      details.innerHTML = `
-        <div class="review-card">
-          <div class="review-header">
-            <span class="logo">SB</span>
-            <span class="title">Tech Labs</span>
-          </div>
-          <div class="review-section-title">Send For Review</div>
-          ${content}
-        </div>`;
+      details.innerHTML = `<div class="review-card">
+        <div class="review-header">
+          <div class="logo"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18l6.9 3.45L12 11.09 5.1 7.63 12 4.18zM4 8.82l7 3.5v7.36l-7-3.5V8.82zm9 10.86v-7.36l7-3.5v7.36l-7 3.5z"/></svg></div><span class="logo-text">SB Tech Labs</span></div>
+          <div class="logo-divider"></div>
+          <span class="title">Send For Review</span>
+        </div>
+        ${content}
+      </div>`;
 
-      // Event Listeners
-      document.getElementById('btn-send-again')?.addEventListener('click', () => {
-        clearReviewState(currentContext?.path);
-        showReadyState();
-      });
-
-      document.getElementById('btn-view-preview')?.addEventListener('click', () => {
-        window.open(currentContext?.previewUrl, '_blank');
-      });
-
+      document.getElementById('btn-send-again')?.addEventListener('click', () => { clearReviewState(currentContext?.path); showReadyState(); });
+      document.getElementById('btn-view-preview')?.addEventListener('click', () => window.open(currentContext?.previewUrl, '_blank'));
       document.getElementById('btn-retry')?.addEventListener('click', init);
-
       document.getElementById('btn-submit')?.addEventListener('click', handleSubmit);
-
       document.getElementById('toggle-debug')?.addEventListener('click', () => {
-        const panel = document.getElementById('debug-panel');
-        if (panel) {
-          panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-          panel.textContent = debugLogs.join('\n');
-        }
+        const p = document.getElementById('debug-panel');
+        if (p) { p.style.display = p.style.display === 'none' ? 'block' : 'none'; p.textContent = debugLogs.join('\n'); }
       });
     }
-
-    // ============================================
-    // MAIN FLOW
-    // ============================================
 
     function showReadyState() {
       const name = currentContext.path.split('/').pop() || 'index';
@@ -1191,106 +425,51 @@
         const h1 = currentAnalysis.headingStructure?.headings?.find(h => h.level === 1);
         if (h1) title = h1.text;
       }
-
-      render({
-        status: 'ready',
-        title,
-        name,
-        analysis: currentAnalysis,
-      });
+      render({ status: 'ready', title, name, analysis: currentAnalysis });
     }
 
     async function handleSubmit() {
-      const notesInput = document.getElementById('notes-input');
-      const notes = notesInput?.value?.trim() || '';
+      const notes = document.getElementById('notes-input')?.value?.trim() || '';
       const email = currentContext.email || getStoredEmail() || 'unknown';
-
       render({ status: 'loading', message: 'Submitting review…' });
-
       try {
         const payload = buildPayload(currentContext, currentAnalysis, email, notes);
-        log('Payload', payload);
-
         await postToWebhook(payload);
-
-        // Save review state
-        setReviewState(currentContext.path, {
-          title: payload.title,
-          name: payload.name,
-          submittedBy: email,
-          previewUrl: payload.previewUrl,
-          liveUrl: payload.liveUrl,
-          notes: notes,
-        });
-
+        setReviewState(currentContext.path, { title: payload.title, name: payload.name, submittedBy: email, previewUrl: payload.previewUrl, liveUrl: payload.liveUrl, notes });
         render({ status: 'success', payload });
       } catch (err) {
-        log('Submit error', err.message);
         render({ status: 'error', message: `Failed to submit: ${err.message}` });
       }
     }
 
     async function init() {
       render({ status: 'loading', message: 'Initializing…' });
-
       try {
         currentContext = await getFullContext();
+        if (!currentContext.org || !currentContext.site) { render({ status: 'error', message: 'Could not determine page context.' }); return; }
 
-        if (!currentContext.org || !currentContext.site) {
-          render({ status: 'error', message: 'Could not determine page context. Make sure you have a page open.' });
-          return;
-        }
-
-        // Check if already in review
         const reviewState = getReviewState(currentContext.path);
         if (reviewState) {
-          log('Found existing review state', reviewState);
-          
-          // Check if page has been published since review
           const published = await checkIfPublished(reviewState.liveUrl, reviewState.timestamp);
-          if (published) {
-            log('Page was published, clearing review state');
-            clearReviewState(currentContext.path);
-          } else {
-            render({ status: 'in-review', data: reviewState });
-            return;
-          }
+          if (published) clearReviewState(currentContext.path);
+          else { render({ status: 'in-review', data: reviewState }); return; }
         }
 
-        // Fetch and analyze content
         render({ status: 'loading', message: 'Analyzing page…' });
         const content = await fetchContent(currentContext);
+        if (!content?.html) { render({ status: 'error', message: 'Could not fetch page content.' }); return; }
 
-        if (!content?.html) {
-          render({ status: 'error', message: 'Could not fetch page content. Make sure the page exists.' });
-          return;
-        }
-
-        // Track which source we got content from
         contentSource = content.source;
-        log('Content source', contentSource);
-
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(content.html, 'text/html');
+        const doc = new DOMParser().parseFromString(content.html, 'text/html');
         currentAnalysis = analyzeDocument(doc, content.isPlain);
-
-        log('Analysis complete', { source: content.source, blocks: currentAnalysis.blocks?.totalBlocks });
-
-        // Show ready state with notes input
         showReadyState();
-
       } catch (err) {
-        log('Init error', err.message);
         render({ status: 'error', message: `Error: ${err.message}` });
       }
     }
 
-    // Start
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
-    } else {
-      init();
-    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
   </script>
 </body>
 </html>
