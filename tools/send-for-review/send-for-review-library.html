@@ -690,28 +690,44 @@
     }
 
     async function fetchContent(ctx) {
+      // First try SDK content
       const sdkContent = await fetchFromSDK();
       if (sdkContent) return sdkContent;
 
+      // Build fetch strategies
+      // IMPORTANT: Prioritize FULL PAGE fetches over .plain.html because
+      // .plain.html only contains body content WITHOUT <head> metadata (title, description, etc.)
       const strategies = [];
-      if (ctx.sameOriginPlainUrl) {
-        strategies.push({ url: ctx.sameOriginPlainUrl, source: 'same-origin-plain', isPlain: true });
-      }
+      
+      // Same-origin full page first (includes <head> with metadata)
       if (ctx.sameOriginPreviewUrl) {
         strategies.push({ url: ctx.sameOriginPreviewUrl, source: 'same-origin-full', isPlain: false });
+      }
+      
+      // Cross-origin full page (may fail due to CORS but try anyway)
+      strategies.push({ url: ctx.previewUrl, source: 'full-page', isPlain: false });
+      
+      // Fallbacks: plain HTML (body only, no metadata)
+      if (ctx.sameOriginPlainUrl) {
+        strategies.push({ url: ctx.sameOriginPlainUrl, source: 'same-origin-plain', isPlain: true });
       }
       strategies.push(
         { url: ctx.daContentUrl, source: 'content.da.live', isPlain: true },
         { url: ctx.daSourceUrl, source: 'admin.da.live', isPlain: true, credentials: 'include' },
         { url: ctx.plainUrl, source: 'plain.html', isPlain: true },
-        { url: ctx.previewUrl, source: 'full-page', isPlain: false },
       );
+
+      log('Fetch strategies', strategies.map(s => s.source));
 
       for (const strategy of strategies) {
         const content = await fetchFromUrl(strategy.url, strategy.source, strategy);
-        if (content) return content;
+        if (content) {
+          log('Content fetched successfully', { source: content.source, isPlain: content.isPlain });
+          return content;
+        }
       }
 
+      // Last resort: try parent postMessage
       try {
         log('Trying parent postMessage');
         const content = await fetchViaParentMessage(ctx);
@@ -722,6 +738,8 @@
       } catch (error) {
         log('Parent postMessage error', error.message);
       }
+      
+      log('All fetch strategies failed');
       return null;
     }
 
@@ -803,11 +821,20 @@
     }
 
     function analyzeSEO(doc) {
+      // Log what we're working with
+      const hasHead = !!doc.querySelector('head');
+      const hasTitle = !!doc.querySelector('title');
+      const hasMeta = !!doc.querySelector('meta[name="description"]');
+      log('SEO analysis starting', { hasHead, hasTitle, hasMeta });
+      
       const title = doc.querySelector('title')?.textContent?.trim() || '';
       const description = doc.querySelector('meta[name="description"]')?.content?.trim() || '';
       const canonical = doc.querySelector('link[rel="canonical"]')?.href || '';
       const robots = doc.querySelector('meta[name="robots"]')?.content || '';
-      const lang = doc.documentElement.lang || '';
+      const lang = doc.documentElement?.lang || doc.querySelector('html')?.lang || '';
+      
+      log('SEO data extracted', { title, descLength: description.length, canonical: !!canonical, lang });
+      
       const issues = [];
 
       // Title: 55 chars max with spaces
@@ -1328,8 +1355,22 @@
         let title = name;
 
         if (content?.html) {
+          log('Parsing HTML content', { 
+            source: content.source, 
+            isPlain: content.isPlain,
+            htmlLength: content.html.length,
+            hasHeadTag: content.html.includes('<head'),
+            hasTitleTag: content.html.includes('<title')
+          });
+          
           const doc = new DOMParser().parseFromString(content.html, 'text/html');
           state.analysis = analyzeDocument(doc, content.isPlain);
+          
+          log('Analysis complete', { 
+            seoTitle: state.analysis?.seo?.title?.content,
+            seoIssues: state.analysis?.seo?.issues
+          });
+          
           title = state.analysis?.seo?.title?.content || name;
           if ((!title || title === name) && state.analysis?.headingStructure?.headings?.length) {
             const h1 = state.analysis.headingStructure.headings.find((h) => h.level === 1);
