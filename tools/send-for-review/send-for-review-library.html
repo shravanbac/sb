@@ -205,13 +205,20 @@
       ctx.path = ctx.path.replace(/^\/+/, '').replace(/\.html?$/, '') || 'index';
 
       // Detect plugin's own branch from its host
+      // Pattern: {ref}--{site}--{org}.aem.page
+      // ref, site, org can contain hyphens, so we split by '--' instead of regex
       const pluginHost = window.location.host;
-      const pluginMatch = pluginHost.match(/^([^-]+)--([^-]+)--([^.]+)\.aem\.(page|live)$/);
-      ctx.pluginRef = pluginMatch ? pluginMatch[1] : null;
-      ctx.pluginSite = pluginMatch ? pluginMatch[2] : null;
-      ctx.pluginOrg = pluginMatch ? pluginMatch[3] : null;
+      const aemMatch = pluginHost.match(/^(.+)\.aem\.(page|live)$/);
+      if (aemMatch) {
+        const parts = aemMatch[1].split('--');
+        if (parts.length >= 3) {
+          ctx.pluginRef = parts[0];
+          ctx.pluginSite = parts[1];
+          ctx.pluginOrg = parts.slice(2).join('--'); // org might have '--' in rare cases
+        }
+      }
       
-      log('Plugin origin detected', { pluginRef: ctx.pluginRef, pluginSite: ctx.pluginSite, pluginOrg: ctx.pluginOrg });
+      log('Plugin origin detected', { pluginHost, pluginRef: ctx.pluginRef, pluginSite: ctx.pluginSite, pluginOrg: ctx.pluginOrg });
 
       ctx.host = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.page`;
       ctx.previewUrl = `https://${ctx.host}/${ctx.path}`;
