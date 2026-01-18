@@ -300,6 +300,28 @@
     .debug-panel--visible {
       display: block;
     }
+
+    /* Character count display */
+    .char-count {
+      font-size: 11px;
+      color: #888;
+      font-weight: normal;
+    }
+
+    /* Issue items display */
+    .issue-item {
+      display: inline-block;
+      background-color: #fff3cd;
+      color: #856404;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin: 2px 4px 2px 0;
+    }
+
+    .detail-row__value--success {
+      color: #155724;
+    }
   </style>
 </head>
 <body>
@@ -1139,29 +1161,59 @@
     }
 
     function renderReadyForm(title, name, analysis) {
-      const seoIssues = analysis?.seo?.issues?.length > 0 ? analysis.seo.issues.join(', ') : 'None';
-      const seoClass = analysis?.seo?.issues?.length > 0 ? 'detail-row__value--warning' : 'detail-row__value--success';
-      const blocks = analysis?.blocks?.blockNames?.length > 0 ? analysis.blocks.blockNames.join(', ') : 'None';
       const storedEmail = storage.getEmail();
+      
+      // SEO data
+      const seoTitle = analysis?.seo?.title?.content || '';
+      const seoTitleLength = analysis?.seo?.title?.length || 0;
+      const seoDescription = analysis?.seo?.metaDescription?.content || '';
+      const seoDescLength = analysis?.seo?.metaDescription?.length || 0;
+      
+      // Build SEO issues display
+      const seoIssues = analysis?.seo?.issues || [];
+      const seoIssuesHtml = seoIssues.length > 0 
+        ? seoIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
+        : '<span class="detail-row__value--success">None</span>';
+      const seoClass = seoIssues.length > 0 ? 'detail-row__value--warning' : '';
+      
+      // Heading issues
+      const headingIssues = analysis?.headingStructure?.issues || [];
+      const headingIssuesHtml = headingIssues.length > 0
+        ? headingIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
+        : '<span class="detail-row__value--success">None</span>';
+      const headingClass = headingIssues.length > 0 ? 'detail-row__value--warning' : '';
+      
+      // Blocks
+      const blocks = analysis?.blocks?.blockNames?.length > 0 
+        ? analysis.blocks.blockNames.join(', ') 
+        : 'None';
 
       return `
         <p class="status-message status-message--loading">Ready to submit for review.</p>
         <div class="page-details">
           <div class="detail-row">
             <span class="detail-row__label">Title:</span>
-            <span class="detail-row__value">${escapeHtml(title)}</span>
+            <span class="detail-row__value">${escapeHtml(seoTitle || name)} <span class="char-count">(${seoTitleLength} chars)</span></span>
           </div>
           <div class="detail-row">
             <span class="detail-row__label">Name:</span>
             <span class="detail-row__value">${escapeHtml(name)}</span>
           </div>
-          <div class="detail-row">
-            <span class="detail-row__label">SEO Issues:</span>
-            <span class="detail-row__value ${seoClass}">${escapeHtml(seoIssues)}</span>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">Description:</span>
+            <span class="detail-row__value ${seoDescLength > CONFIG.seo.descriptionMaxLength ? 'detail-row__value--warning' : ''}">${seoDescription ? escapeHtml(seoDescription) : '<em>No description</em>'} <span class="char-count">(${seoDescLength} chars)</span></span>
           </div>
           <div class="detail-row">
             <span class="detail-row__label">Blocks:</span>
             <span class="detail-row__value">${analysis?.blocks?.totalBlocks || 0} (${escapeHtml(blocks)})</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">SEO Issues:</span>
+            <span class="detail-row__value ${seoClass}">${seoIssuesHtml}</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">Heading Issues:</span>
+            <span class="detail-row__value ${headingClass}">${headingIssuesHtml}</span>
           </div>
         </div>
         <div class="form-section">
@@ -1214,19 +1266,48 @@
     }
 
     function renderSuccess(payload) {
+      // SEO issues
+      const seoIssues = payload.seo?.issues || [];
+      const seoIssuesHtml = seoIssues.length > 0 
+        ? seoIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
+        : '<span class="detail-row__value--success">None</span>';
+      
+      // Heading issues
+      const headingIssues = payload.headingStructure?.issues || [];
+      const headingIssuesHtml = headingIssues.length > 0
+        ? headingIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
+        : '<span class="detail-row__value--success">None</span>';
+      
+      // Blocks
+      const blocks = payload.blocks?.blockNames?.length > 0 
+        ? payload.blocks.blockNames.join(', ') 
+        : 'None';
+      
+      // Description
+      const description = payload.seo?.metaDescription?.content || '';
+      const descLength = payload.seo?.metaDescription?.length || 0;
+
       return `
         <p class="status-message status-message--success">Review request submitted successfully!</p>
         <div class="page-details">
           <div class="detail-row">
             <span class="detail-row__label">Title:</span>
-            <span class="detail-row__value">${escapeHtml(payload.title)}</span>
+            <span class="detail-row__value">${escapeHtml(payload.title)} <span class="char-count">(${payload.seo?.title?.length || 0} chars)</span></span>
           </div>
           <div class="detail-row">
-            <span class="detail-row__label">Submitter:</span>
+            <span class="detail-row__label">Name:</span>
+            <span class="detail-row__value">${escapeHtml(payload.name)}</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">Description:</span>
+            <span class="detail-row__value">${description ? escapeHtml(description) : '<em>No description</em>'} <span class="char-count">(${descLength} chars)</span></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">Submitted By:</span>
             <span class="detail-row__value">${escapeHtml(payload.submittedBy)}</span>
           </div>
           <div class="detail-row">
-            <span class="detail-row__label">Submitted On:</span>
+            <span class="detail-row__label">Submission Date:</span>
             <span class="detail-row__value">${formatDate(payload.reviewSubmissionDate)}</span>
           </div>
           ${payload.notes ? `
@@ -1234,6 +1315,18 @@
               <span class="detail-row__label">Notes:</span>
               <span class="detail-row__value">${escapeHtml(payload.notes)}</span>
             </div>` : ''}
+          <div class="detail-row">
+            <span class="detail-row__label">Blocks:</span>
+            <span class="detail-row__value">${payload.blocks?.totalBlocks || 0} (${escapeHtml(blocks)})</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">SEO Issues:</span>
+            <span class="detail-row__value ${seoIssues.length > 0 ? 'detail-row__value--warning' : ''}">${seoIssuesHtml}</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">Heading Issues:</span>
+            <span class="detail-row__value ${headingIssues.length > 0 ? 'detail-row__value--warning' : ''}">${headingIssuesHtml}</span>
+          </div>
         </div>
         <div class="actions">
           <a href="${payload.previewUrl}" target="_blank" class="btn btn--secondary">View Preview</a>
