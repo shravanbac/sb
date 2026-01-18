@@ -204,10 +204,28 @@
       if (ctx.path.includes('tools/send-for-review') || ctx.path.includes('send-for-review-library')) ctx.path = 'index';
       ctx.path = ctx.path.replace(/^\/+/, '').replace(/\.html?$/, '') || 'index';
 
+      // Detect plugin's own branch from its host
+      const pluginHost = window.location.host;
+      const pluginMatch = pluginHost.match(/^([^-]+)--([^-]+)--([^.]+)\.aem\.(page|live)$/);
+      ctx.pluginRef = pluginMatch ? pluginMatch[1] : null;
+      ctx.pluginSite = pluginMatch ? pluginMatch[2] : null;
+      ctx.pluginOrg = pluginMatch ? pluginMatch[3] : null;
+      
+      log('Plugin origin detected', { pluginRef: ctx.pluginRef, pluginSite: ctx.pluginSite, pluginOrg: ctx.pluginOrg });
+
       ctx.host = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.page`;
       ctx.previewUrl = `https://${ctx.host}/${ctx.path}`;
       ctx.liveUrl = `https://${ctx.ref}--${ctx.site}--${ctx.org}.aem.live/${ctx.path}`;
       ctx.plainUrl = `https://${ctx.host}/${ctx.path}.plain.html`;
+      
+      // Same-origin URLs (using plugin's branch) - these won't have CORS issues
+      if (ctx.pluginRef && ctx.pluginSite === ctx.site && ctx.pluginOrg === ctx.org) {
+        ctx.sameOriginHost = `${ctx.pluginRef}--${ctx.site}--${ctx.org}.aem.page`;
+        ctx.sameOriginPreviewUrl = `https://${ctx.sameOriginHost}/${ctx.path}`;
+        ctx.sameOriginPlainUrl = `https://${ctx.sameOriginHost}/${ctx.path}.plain.html`;
+        log('Same-origin URLs available', { sameOriginHost: ctx.sameOriginHost });
+      }
+      
       // content.da.live is publicly accessible (no auth required)
       ctx.daContentUrl = `https://content.da.live/${ctx.org}/${ctx.site}/${ctx.path}`;
       // admin.da.live requires auth - only works if credentials passed
@@ -241,13 +259,24 @@
         }
       }
 
-      // Strategy 2: Try content.da.live (publicly accessible, no auth)
-      const strategies = [
-        { url: ctx.daContentUrl, source: 'content.da.live', isPlain: true },
-        { url: ctx.daSourceUrl, source: 'admin.da.live', isPlain: true, credentials: 'include' },
-        { url: ctx.plainUrl, source: 'plain.html', isPlain: true },
-        { url: ctx.previewUrl, source: 'full-page', isPlain: false },
-      ];
+      // Build fetch strategies - prioritize same-origin URLs to avoid CORS
+      const strategies = [];
+      
+      // Same-origin URLs first (no CORS issues)
+      if (ctx.sameOriginPlainUrl) {
+        strategies.push({ url: ctx.sameOriginPlainUrl, source: 'same-origin-plain', isPlain: true });
+      }
+      if (ctx.sameOriginPreviewUrl) {
+        strategies.push({ url: ctx.sameOriginPreviewUrl, source: 'same-origin-full', isPlain: false });
+      }
+      
+      // Then try DA.live URLs
+      strategies.push({ url: ctx.daContentUrl, source: 'content.da.live', isPlain: true });
+      strategies.push({ url: ctx.daSourceUrl, source: 'admin.da.live', isPlain: true, credentials: 'include' });
+      
+      // Finally try cross-origin AEM URLs (may fail due to CORS)
+      strategies.push({ url: ctx.plainUrl, source: 'plain.html', isPlain: true });
+      strategies.push({ url: ctx.previewUrl, source: 'full-page', isPlain: false });
       
       for (const s of strategies) {
         try {
