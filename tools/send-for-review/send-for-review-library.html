@@ -219,16 +219,28 @@
     // CONTENT FETCHING & ANALYSIS
     // ============================================
     async function fetchContent(ctx) {
+      // Prioritize DA.live source URL - it's CORS-friendly and works across branches
+      // AEM preview URLs may be blocked due to cross-origin restrictions when
+      // the plugin is hosted on a different branch than the page being edited
       const strategies = [
-        { url: ctx.previewUrl, source: 'full-page', isPlain: false },
-        { url: ctx.plainUrl, source: 'plain.html', isPlain: true },
         { url: ctx.daSourceUrl, source: 'da-source', isPlain: true },
+        { url: ctx.plainUrl, source: 'plain.html', isPlain: true },
+        { url: ctx.previewUrl, source: 'full-page', isPlain: false },
       ];
+      
       for (const s of strategies) {
         try {
-          const res = await fetch(s.url, { cache: 'no-store' });
-          if (res.ok) return { html: await res.text(), source: s.source, isPlain: s.isPlain };
-        } catch {}
+          log(`Trying ${s.source}`, s.url);
+          const res = await fetch(s.url, { cache: 'no-store', mode: 'cors' });
+          if (res.ok) {
+            const html = await res.text();
+            log(`${s.source} success`, { length: html.length });
+            return { html, source: s.source, isPlain: s.isPlain };
+          }
+          log(`${s.source} returned`, res.status);
+        } catch (err) {
+          log(`${s.source} error`, err.message);
+        }
       }
       return null;
     }
