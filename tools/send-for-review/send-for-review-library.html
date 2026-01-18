@@ -168,10 +168,13 @@
       return null;
     }
 
+    let daSDKInstance = null;
+    
     async function getContextFromDASDK() {
       try {
         const DA_SDK = await import('https://da.live/nx/utils/sdk.js');
         const sdk = await DA_SDK.default;
+        daSDKInstance = sdk; // Store for later use
         if (sdk?.context) return {
           org: sdk.context.org || sdk.context.owner || '',
           site: sdk.context.repo || '',
@@ -205,6 +208,9 @@
       ctx.previewUrl = `https://${ctx.host}/${ctx.path}`;
       ctx.liveUrl = `https://${ctx.ref}--${ctx.site}--${ctx.org}.aem.live/${ctx.path}`;
       ctx.plainUrl = `https://${ctx.host}/${ctx.path}.plain.html`;
+      // content.da.live is publicly accessible (no auth required)
+      ctx.daContentUrl = `https://content.da.live/${ctx.org}/${ctx.site}/${ctx.path}`;
+      // admin.da.live requires auth - only works if credentials passed
       ctx.daSourceUrl = `https://admin.da.live/source/${ctx.org}/${ctx.site}/${ctx.path}.html`;
       ctx.env = 'page';
       
@@ -219,11 +225,26 @@
     // CONTENT FETCHING & ANALYSIS
     // ============================================
     async function fetchContent(ctx) {
-      // Prioritize DA.live source URL - it's CORS-friendly and works across branches
-      // AEM preview URLs may be blocked due to cross-origin restrictions when
-      // the plugin is hosted on a different branch than the page being edited
+      // Strategy 1: Try to get content from DA SDK (has auth context)
+      if (daSDKInstance?.context) {
+        try {
+          log('Trying DA SDK content');
+          // Check if SDK provides document content
+          const doc = daSDKInstance.context.doc || daSDKInstance.context.document;
+          if (doc) {
+            log('DA SDK content found');
+            const html = typeof doc === 'string' ? doc : doc.outerHTML || doc.innerHTML;
+            if (html) return { html, source: 'da-sdk', isPlain: true };
+          }
+        } catch (err) {
+          log('DA SDK content error', err.message);
+        }
+      }
+
+      // Strategy 2: Try content.da.live (publicly accessible, no auth)
       const strategies = [
-        { url: ctx.daSourceUrl, source: 'da-source', isPlain: true },
+        { url: ctx.daContentUrl, source: 'content.da.live', isPlain: true },
+        { url: ctx.daSourceUrl, source: 'admin.da.live', isPlain: true, credentials: 'include' },
         { url: ctx.plainUrl, source: 'plain.html', isPlain: true },
         { url: ctx.previewUrl, source: 'full-page', isPlain: false },
       ];
@@ -231,7 +252,11 @@
       for (const s of strategies) {
         try {
           log(`Trying ${s.source}`, s.url);
-          const res = await fetch(s.url, { cache: 'no-store', mode: 'cors' });
+          const fetchOptions = { 
+            cache: 'no-store',
+            ...(s.credentials && { credentials: s.credentials })
+          };
+          const res = await fetch(s.url, fetchOptions);
           if (res.ok) {
             const html = await res.text();
             log(`${s.source} success`, { length: html.length });
@@ -242,7 +267,73 @@
           log(`${s.source} error`, err.message);
         }
       }
+      
+      // Strategy 3: Try fetching via postMessage to parent (DA.live)
+      try {
+        log('Trying parent postMessage');
+        const content = await getContentViaParent(ctx);
+        if (content) {
+          log('Parent postMessage success', { length: content.length });
+          return { html: content, source: 'parent-message', isPlain: true };
+        }
+      } catch (err) {
+        log('Parent postMessage error', err.message);
+      }
+      
       return null;
+    }
+    
+    // Try to get content by communicating with parent DA.live window
+    function getContentViaParent(ctx) {
+      return new Promise((resolve) => {
+        // Set timeout - don't wait forever
+        const timeout = setTimeout(() => resolve(null), 2000);
+        
+        // Listen for response
+        const handler = (event) => {
+          if (event.data?.type === 'da-content-response' && event.data?.path === ctx.path) {
+            clearTimeout(timeout);
+            window.removeEventListener('message', handler);
+            resolve(event.data.content);
+          }
+        };
+        window.addEventListener('message', handler);
+        
+        // Request content from parent
+        if (window.parent !== window) {
+          window.parent.postMessage({
+            type: 'da-content-request',
+            path: ctx.path,
+            org: ctx.org,
+            site: ctx.site
+          }, '*');
+        } else {
+          clearTimeout(timeout);
+          resolve(null);
+        }
+      });
+    }
+
+    // Create minimal analysis when content can't be fetched
+    function createMinimalAnalysis() {
+      return {
+        contentMetrics: { wordCount: 0, characterCount: 0, characterCountNoSpaces: 0, sentenceCount: 0, paragraphCount: 0, avgWordsPerSentence: 0, readingTimeMinutes: 0 },
+        headingStructure: { headings: [], counts: { h1: 0, h2: 0, h3: 0, h4: 0, h5: 0, h6: 0 }, total: 0, issues: ['Content not available for analysis'], isValid: false },
+        blocks: { totalBlocks: 0, totalSections: 0, blocks: [], blockNames: [], blockSummary: {} },
+        seo: { title: { content: '', length: 0 }, metaDescription: { content: '', length: 0 }, canonical: '', robots: '', lang: '', issues: ['Content not available for analysis'] },
+        openGraph: { openGraph: {}, twitter: {}, issues: [], score: 0, hasSocialMeta: false },
+        accessibility: { images: { total: 0, withAlt: 0, withoutAlt: 0, decorative: 0, altCoveragePercent: 100 }, aria: { labels: 0, roles: 0 }, issues: [], score: 100 },
+        links: { total: 0, internal: 0, external: 0, buttons: 0, mailto: 0, tel: 0, externalLinks: [] },
+        interactiveElements: { forms: 0, buttons: 0, inputs: 0, videos: 0, iframes: 0 },
+        analytics: {
+          timestamp: new Date().toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          userAgent: navigator.userAgent,
+          language: navigator.language,
+          screen: { width: window.screen?.width || 0, height: window.screen?.height || 0, colorDepth: window.screen?.colorDepth || 0 },
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+        },
+      };
     }
 
     function analyzeDocument(doc, isPlain) {
@@ -466,6 +557,30 @@
           </div>
           <div class="actions"><button id="submit-btn" class="btn btn-primary">Submit for Review</button></div>`;
       }
+      else if (state.status === 'ready-minimal') {
+        // Ready to submit but without content analysis (fallback mode)
+        const storedEmail = getStoredEmail();
+
+        content = `
+          <p class="status-message loading">Ready to submit for review.</p>
+          <div class="page-details">
+            <div class="detail-row"><span class="label">Page:</span><span class="value">${state.name}</span></div>
+            <div class="detail-row"><span class="label">Path:</span><span class="value">/${currentContext.path}</span></div>
+          </div>
+          <p class="info-note" style="color: #856404; background: #fff3cd;">⚠️ Page analysis unavailable (cross-origin). Review tracking will still work.</p>
+          <div class="form-section">
+            <div class="form-group">
+              <label class="form-label">Your Email <span class="required">*</span></label>
+              <input type="email" id="email-input" class="form-input" placeholder="Enter your email address" value="${storedEmail}" required>
+              <div class="form-hint">Required for review tracking</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Notes / Instructions (Optional)</label>
+              <textarea id="notes-input" class="form-textarea" placeholder="Enter any additional notes or instructions for this review..."></textarea>
+            </div>
+          </div>
+          <div class="actions"><button id="submit-btn" class="btn btn-primary">Submit for Review</button></div>`;
+      }
       else if (state.status === 'success') {
         // Successfully submitted
         const p = state.payload;
@@ -547,23 +662,26 @@
         // Step 3: No active review - analyze page and show form
         renderCard({ status: 'loading', message: 'Analyzing page…' });
         const content = await fetchContent(currentContext);
-        if (!content?.html) {
-          renderCard({ status: 'error', message: 'Could not fetch page content. Make sure the page exists.' });
-          return;
-        }
-
-        const doc = new DOMParser().parseFromString(content.html, 'text/html');
-        currentAnalysis = analyzeDocument(doc, content.isPlain);
-
-        // Step 4: Show ready state with form
-        const name = currentContext.path.split('/').pop() || 'index';
-        let title = currentAnalysis?.seo?.title?.content || name;
-        if ((!title || title === name) && currentAnalysis?.headingStructure?.headings?.length) {
-          const h1 = currentAnalysis.headingStructure.headings.find(h => h.level === 1);
-          if (h1) title = h1.text;
-        }
         
-        renderCard({ status: 'ready', title, name, analysis: currentAnalysis });
+        const name = currentContext.path.split('/').pop() || 'index';
+        let title = name;
+        
+        if (content?.html) {
+          const doc = new DOMParser().parseFromString(content.html, 'text/html');
+          currentAnalysis = analyzeDocument(doc, content.isPlain);
+          title = currentAnalysis?.seo?.title?.content || name;
+          if ((!title || title === name) && currentAnalysis?.headingStructure?.headings?.length) {
+            const h1 = currentAnalysis.headingStructure.headings.find(h => h.level === 1);
+            if (h1) title = h1.text;
+          }
+          // Step 4: Show ready state with full analysis
+          renderCard({ status: 'ready', title, name, analysis: currentAnalysis });
+        } else {
+          // Content fetch failed - show minimal form (still allow submission)
+          log('Content fetch failed - showing minimal form');
+          currentAnalysis = createMinimalAnalysis();
+          renderCard({ status: 'ready-minimal', title, name });
+        }
         
       } catch (err) {
         log('Init error', err.message);
