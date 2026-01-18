@@ -6,76 +6,363 @@
   <title>Get Page Current Status</title>
   <link rel="icon" href="data:,">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, Helvetica, sans-serif; background-color: #f7f9fb; margin: 0; padding: 0; color: #333; line-height: 1.5; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    #status-card { background-color: #fff; border: 1px solid #d9e1e2; box-shadow: 0 2px 6px rgba(0,0,0,0.1); width: 100%; min-height: 100vh; overflow: hidden; }
-    .header-bar { display: flex; align-items: center; background-color: #0077c8; padding: 10px 14px; color: #fff; font-weight: bold; font-size: 1rem; }
-    .header-bar .logo { height: 40px; margin-right: 10px; }
-    .header-title { flex: 1; }
-    .content { padding: 16px 20px; }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background-color: #f7f9fb;
+      color: #333;
+      line-height: 1.5;
+    }
 
-    .status-message { font-weight: 600; margin-bottom: 16px; padding: 12px 16px; border-radius: 4px; }
-    .status-message.loading { color: #555; font-style: italic; background-color: #f5f5f5; }
-    .status-message.in-review { color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; }
-    .status-message.no-review { color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; }
-    .status-message.complete { color: #0c5460; background-color: #d1ecf1; border: 1px solid #bee5eb; }
-    .status-message.error { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; }
+    .status-card {
+      background-color: #fff;
+      border: 1px solid #d9e1e2;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      min-height: 100vh;
+      overflow: hidden;
+    }
 
-    .page-details { margin: 16px 0; }
-    .detail-row { display: flex; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
-    .detail-row:last-child { border-bottom: none; }
-    .detail-row.full-width { flex-direction: column; }
-    .detail-row .label { font-weight: 600; color: #004b87; min-width: 130px; flex-shrink: 0; }
-    .detail-row .value { color: #333; word-break: break-word; }
-    .detail-row.full-width .value { margin-top: 4px; padding: 8px 12px; background-color: #f9f9f9; border-radius: 4px; font-style: italic; }
+    .header-bar {
+      display: flex;
+      align-items: center;
+      background-color: #0077c8;
+      padding: 10px 14px;
+      color: #fff;
+      font-weight: bold;
+      font-size: 1rem;
+    }
 
-    .actions { display: flex; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; }
-    .btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; font-size: 14px; font-weight: 600; border-radius: 4px; cursor: pointer; text-decoration: none; transition: all 0.2s ease; border: none; flex: 1; }
-    .btn-primary { background-color: #0077c8; color: #fff; }
-    .btn-primary:hover { background-color: #005a9e; }
-    .btn-secondary { background-color: #fff; color: #0077c8; border: 1px solid #0077c8; }
-    .btn-secondary:hover { background-color: #f0f7fc; }
+    .header-bar .logo {
+      height: 40px;
+      margin-right: 10px;
+    }
 
-    .notice { text-align: center; padding: 20px; }
-    .spinner { width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #0077c8; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .content {
+      padding: 16px 20px;
+    }
 
-    .info-note { font-size: 12px; color: #666; margin-top: 12px; text-align: center; padding: 8px; background: #f8f9fa; border-radius: 4px; }
-    
-    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-    .status-badge.in-review { background: #fff3cd; color: #856404; }
-    .status-badge.no-review { background: #d4edda; color: #155724; }
-    .status-badge.complete { background: #d1ecf1; color: #0c5460; }
+    /* Status Messages */
+    .status-message {
+      font-weight: 600;
+      margin-bottom: 16px;
+      padding: 12px 16px;
+      border-radius: 4px;
+    }
+
+    .status-message--loading {
+      color: #555;
+      font-style: italic;
+      background-color: #f5f5f5;
+    }
+
+    .status-message--in-review {
+      color: #856404;
+      background-color: #fff3cd;
+      border: 1px solid #ffeeba;
+    }
+
+    .status-message--no-review {
+      color: #155724;
+      background-color: #d4edda;
+      border: 1px solid #c3e6cb;
+    }
+
+    .status-message--complete {
+      color: #0c5460;
+      background-color: #d1ecf1;
+      border: 1px solid #bee5eb;
+    }
+
+    .status-message--error {
+      color: #721c24;
+      background-color: #f8d7da;
+      border: 1px solid #f5c6cb;
+    }
+
+    /* Page Details */
+    .page-details {
+      margin: 16px 0;
+    }
+
+    .detail-row {
+      display: flex;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-row--full-width {
+      flex-direction: column;
+    }
+
+    .detail-row__label {
+      font-weight: 600;
+      color: #004b87;
+      min-width: 130px;
+      flex-shrink: 0;
+    }
+
+    .detail-row__value {
+      color: #333;
+      word-break: break-word;
+    }
+
+    .detail-row__value--warning {
+      color: #856404;
+    }
+
+    .detail-row__value--success {
+      color: #155724;
+    }
+
+    .detail-row--full-width .detail-row__value {
+      margin-top: 4px;
+      padding: 8px 12px;
+      background-color: #f9f9f9;
+      border-radius: 4px;
+      font-style: italic;
+    }
+
+    /* Buttons */
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #eee;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 4px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background-color 0.2s, border-color 0.2s;
+      border: none;
+      flex: 1;
+    }
+
+    .btn--primary {
+      background-color: #0077c8;
+      color: #fff;
+    }
+
+    .btn--primary:hover:not(:disabled) {
+      background-color: #005a9e;
+    }
+
+    .btn--secondary {
+      background-color: #fff;
+      color: #0077c8;
+      border: 1px solid #0077c8;
+    }
+
+    .btn--secondary:hover {
+      background-color: #f0f7fc;
+    }
+
+    /* Loading State */
+    .notice {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e0e0e0;
+      border-top-color: #0077c8;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Info Note */
+    .info-note {
+      font-size: 12px;
+      color: #666;
+      margin-top: 12px;
+      text-align: center;
+      padding: 8px;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+
+    /* Status Badge */
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge--in-review {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status-badge--no-review {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-badge--complete {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+
+    /* Character count display */
+    .char-count {
+      font-size: 11px;
+      color: #888;
+      font-weight: normal;
+    }
+
+    /* Issue items display */
+    .issue-item {
+      display: inline-block;
+      background-color: #fff3cd;
+      color: #856404;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin: 2px 4px 2px 0;
+    }
+
+    /* Debug Panel */
+    .debug-toggle {
+      font-size: 12px;
+      color: #666;
+      cursor: pointer;
+      margin-top: 12px;
+      text-decoration: underline;
+    }
+
+    .debug-panel {
+      margin-top: 12px;
+      padding: 10px;
+      background: #fff8e1;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 150px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .debug-panel--visible {
+      display: block;
+    }
   </style>
 </head>
 <body>
-  <div id="details"></div>
+  <div id="app"></div>
+
   <script type="module">
+    /**
+     * Get Page Current Status Plugin
+     * DA.live Library integration for checking review status
+     */
+
     // ============================================
     // CONFIGURATION
     // ============================================
-    const CONFIG = {
-      // Webhook for checking status (queries Data Store)
+    const CONFIG = Object.freeze({
       statusWebhookUrl: 'https://hook.us2.make.com/2m2qfnd6ad4283weagp7xlyk66npgsup',
-      
       defaultRef: 'main',
       logoPath: './assets/agilent-logo.png',
+    });
+
+    const STATUS = Object.freeze({
+      LOADING: 'loading',
+      IN_REVIEW: 'in-review',
+      COMPLETE: 'complete',
+      NO_REVIEW: 'no-review',
+      ERROR: 'error',
+    });
+
+    // ============================================
+    // STATE
+    // ============================================
+    const state = {
+      context: null,
+      debugLogs: [],
     };
 
-    let currentContext = null;
+    // ============================================
+    // UTILITIES
+    // ============================================
+    function log(message, data = null) {
+      const timestamp = new Date().toISOString().slice(11, 19);
+      const logEntry = data
+        ? `[${timestamp}] ${message}: ${JSON.stringify(data).slice(0, 200)}`
+        : `[${timestamp}] ${message}`;
+      console.log(`[GPS ${timestamp}]`, message, data || '');
+      state.debugLogs.push(logEntry);
+    }
 
-    function log(msg, data = null) {
-      const ts = new Date().toISOString().slice(11, 19);
-      console.log(`[GPS ${ts}]`, msg, data || '');
+    function formatDate(isoString) {
+      try {
+        return new Date(isoString).toLocaleString();
+      } catch {
+        return isoString;
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function normalizePath(path) {
+      return path
+        .replace(/^\/+/, '')
+        .replace(/\.html?$/, '')
+        .replace(/\/index$/, '') || 'index';
+    }
+
+    function isIndexPage(path) {
+      const normalized = normalizePath(path);
+      return normalized === 'index' || normalized === '';
+    }
+
+    function buildUrlPath(path) {
+      return isIndexPage(path) ? '/' : `/${normalizePath(path)}`;
     }
 
     // ============================================
-    // STATUS CHECK (from Make.com Data Store)
+    // API
     // ============================================
     async function checkReviewStatus(ctx) {
-      log('Checking review status from Make.com...');
-      
+      log('Checking review status');
       try {
         const response = await fetch(CONFIG.statusWebhookUrl, {
           method: 'POST',
@@ -91,16 +378,15 @@
         });
 
         if (!response.ok) {
-          log('Status check failed', response.status);
+          log('Status check failed', { status: response.status });
           return null;
         }
 
         const data = await response.json();
         log('Status response', data);
         return data;
-
-      } catch (err) {
-        log('Status check error', err.message);
+      } catch (error) {
+        log('Status check error', error.message);
         return null;
       }
     }
@@ -109,19 +395,51 @@
     // CONTEXT DETECTION
     // ============================================
     function getContextFromURLParams() {
-      const p = new URLSearchParams(window.location.search);
-      return { ref: p.get('ref') || '', site: p.get('site') || p.get('repo') || '', org: p.get('org') || p.get('owner') || '', path: p.get('path') || '' };
+      const params = new URLSearchParams(window.location.search);
+      const ctx = {
+        ref: params.get('ref') || '',
+        site: params.get('site') || params.get('repo') || '',
+        org: params.get('org') || params.get('owner') || '',
+        path: params.get('path') || '',
+      };
+      log('URL params context', ctx);
+      return ctx;
     }
 
     function getContextFromReferrer() {
       if (!document.referrer) return null;
       try {
         const url = new URL(document.referrer);
-        const daMatch = url.href.match(/da\.live\/edit#\/([^\/]+)\/([^\/]+)\/?(.*)?/);
-        if (daMatch) return { org: daMatch[1], site: daMatch[2], path: daMatch[3] || 'index', ref: 'main', source: 'da.live-referrer' };
+        log('Referrer URL', document.referrer);
+
+        const daMatch = url.href.match(/da\.live\/edit#\/([^/]+)\/([^/]+)\/(.*)?/);
+        if (daMatch) {
+          const pagePath = daMatch[3] || 'index';
+          log('DA.live referrer match', { org: daMatch[1], site: daMatch[2], path: pagePath });
+          return {
+            org: daMatch[1],
+            site: daMatch[2],
+            path: pagePath,
+            ref: 'main',
+            source: 'da.live-referrer',
+          };
+        }
+
         const aemMatch = url.host.match(/^([^-]+)--([^-]+)--([^.]+)\.aem\.(page|live)$/);
-        if (aemMatch) return { ref: aemMatch[1], site: aemMatch[2], org: aemMatch[3], path: url.pathname.replace(/^\//, '') || 'index', source: 'aem-referrer' };
-      } catch {}
+        if (aemMatch) {
+          const pagePath = url.pathname.replace(/^\//, '') || 'index';
+          log('AEM referrer match', { ref: aemMatch[1], site: aemMatch[2], org: aemMatch[3], path: pagePath });
+          return {
+            ref: aemMatch[1],
+            site: aemMatch[2],
+            org: aemMatch[3],
+            path: pagePath,
+            source: 'aem-referrer',
+          };
+        }
+      } catch (error) {
+        log('Referrer parse error', error.message);
+      }
       return null;
     }
 
@@ -129,14 +447,21 @@
       try {
         const DA_SDK = await import('https://da.live/nx/utils/sdk.js');
         const sdk = await DA_SDK.default;
-        if (sdk?.context) return {
-          org: sdk.context.org || sdk.context.owner || '',
-          site: sdk.context.repo || '',
-          ref: sdk.context.ref || 'main',
-          path: sdk.context.path || 'index',
-          source: 'da-sdk'
-        };
-      } catch {}
+        log('DA SDK raw context', sdk?.context);
+
+        if (sdk?.context) {
+          const sdkPath = sdk.context.path || '';
+          return {
+            org: sdk.context.org || sdk.context.owner || '',
+            site: sdk.context.repo || '',
+            ref: sdk.context.ref || 'main',
+            path: sdkPath,
+            source: 'da-sdk',
+          };
+        }
+      } catch (error) {
+        log('DA SDK error', error.message);
+      }
       return null;
     }
 
@@ -145,19 +470,33 @@
       const referrerCtx = getContextFromReferrer();
       const sdkCtx = await getContextFromDASDK();
 
+      log('Context sources', { urlParams, referrerCtx, sdkCtx });
+
+      let path = sdkCtx?.path || referrerCtx?.path || urlParams.path || '';
+
+      if (!path) {
+        path = 'index';
+      }
+
+      if (path.includes('tools/') || path.includes('get-page-status')) {
+        log('Path contains plugin path, falling back', { originalPath: path });
+        path = referrerCtx?.path || urlParams.path || 'index';
+      }
+
+      path = normalizePath(path);
+      log('Final path after normalization', path);
+
       const ctx = {
         ref: sdkCtx?.ref || referrerCtx?.ref || urlParams.ref || CONFIG.defaultRef,
         site: sdkCtx?.site || referrerCtx?.site || urlParams.site || '',
         org: sdkCtx?.org || referrerCtx?.org || urlParams.org || '',
-        path: sdkCtx?.path || referrerCtx?.path || urlParams.path || 'index',
+        path,
         source: sdkCtx?.source || referrerCtx?.source || 'url-params',
       };
 
-      if (ctx.path.includes('tools/') || ctx.path.includes('get-page-status')) ctx.path = 'index';
-      ctx.path = ctx.path.replace(/^\/+/, '').replace(/\.html?$/, '') || 'index';
-
-      ctx.previewUrl = `https://${ctx.ref}--${ctx.site}--${ctx.org}.aem.page/${ctx.path}`;
-      ctx.liveUrl = `https://${ctx.ref}--${ctx.site}--${ctx.org}.aem.live/${ctx.path}`;
+      const urlPath = buildUrlPath(ctx.path);
+      ctx.previewUrl = `https://${ctx.ref}--${ctx.site}--${ctx.org}.aem.page${urlPath}`;
+      ctx.liveUrl = `https://${ctx.ref}--${ctx.site}--${ctx.org}.aem.live${urlPath}`;
       ctx.pageIdentifier = `${ctx.org}/${ctx.site}/${ctx.path}`;
 
       log('Final context', ctx);
@@ -167,110 +506,299 @@
     // ============================================
     // UI RENDERING
     // ============================================
-    function formatDate(iso) { try { return new Date(iso).toLocaleString(); } catch { return iso; } }
+    function renderHeader() {
+      return `<div class="header-bar"><img src="${CONFIG.logoPath}" alt="Agilent Logo" class="logo" /></div>`;
+    }
 
-    function renderCard(state) {
-      const details = document.getElementById('details');
+    function renderLoading(message) {
+      return `
+        <div class="notice">
+          <div class="spinner"></div>
+          <p class="status-message status-message--loading">${escapeHtml(message)}</p>
+        </div>`;
+    }
+
+    function renderError(message) {
+      return `
+        <div class="notice">
+          <p class="status-message status-message--error">${escapeHtml(message)}</p>
+          <button id="retry-btn" class="btn btn--primary" style="margin-top: 12px;">Retry</button>
+          <div class="debug-toggle" id="debug-toggle">Show debug info</div>
+          <div class="debug-panel" id="debug-panel"></div>
+        </div>`;
+    }
+
+    function renderInReview(data) {
+      const ctx = state.context;
+      
+      // SEO data
+      const seoTitle = data.seo?.title?.content || data.title || '';
+      const seoTitleLength = data.seo?.title?.length || seoTitle.length || 0;
+      const seoDescription = data.seo?.metaDescription?.content || '';
+      const seoDescLength = data.seo?.metaDescription?.length || 0;
+      
+      // SEO issues
+      const seoIssues = data.seo?.issues || [];
+      const seoIssuesHtml = seoIssues.length > 0
+        ? seoIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
+        : '<span class="detail-row__value--success">None</span>';
+      
+      // Heading issues
+      const headingIssues = data.headingStructure?.issues || [];
+      const headingIssuesHtml = headingIssues.length > 0
+        ? headingIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
+        : '<span class="detail-row__value--success">None</span>';
+      
+      // Blocks
+      const blocks = data.blocks?.blockNames?.length > 0
+        ? data.blocks.blockNames.join(', ')
+        : 'None';
+
+      return `
+        <p class="status-message status-message--in-review">Page review is in progress.</p>
+        <div class="page-details">
+          <div class="detail-row">
+            <span class="detail-row__label">Status:</span>
+            <span class="detail-row__value"><span class="status-badge status-badge--in-review">In Review</span></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">Title:</span>
+            <span class="detail-row__value">${escapeHtml(seoTitle || ctx.path)} <span class="char-count">(${seoTitleLength} chars)</span></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">Name:</span>
+            <span class="detail-row__value">${escapeHtml(data.name || ctx.path)}</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">Description:</span>
+            <span class="detail-row__value">${seoDescription ? escapeHtml(seoDescription) : '<em>No description</em>'} <span class="char-count">(${seoDescLength} chars)</span></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">Submitted By:</span>
+            <span class="detail-row__value">${escapeHtml(data.submittedBy || 'Unknown')}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">Submission Date:</span>
+            <span class="detail-row__value">${data.submittedDate ? formatDate(data.submittedDate) : 'N/A'}</span>
+          </div>
+          ${data.notes ? `
+            <div class="detail-row detail-row--full-width">
+              <span class="detail-row__label">Notes:</span>
+              <span class="detail-row__value">${escapeHtml(data.notes)}</span>
+            </div>` : ''}
+          <div class="detail-row">
+            <span class="detail-row__label">Blocks:</span>
+            <span class="detail-row__value">${data.blocks?.totalBlocks || 0} (${escapeHtml(blocks)})</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">SEO Issues:</span>
+            <span class="detail-row__value ${seoIssues.length > 0 ? 'detail-row__value--warning' : ''}">${seoIssuesHtml}</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">Heading Issues:</span>
+            <span class="detail-row__value ${headingIssues.length > 0 ? 'detail-row__value--warning' : ''}">${headingIssuesHtml}</span>
+          </div>
+        </div>
+        <div class="actions">
+          <a href="${ctx.previewUrl}" target="_blank" class="btn btn--secondary">View Preview</a>
+          <button id="refresh-btn" class="btn btn--primary">Refresh Status</button>
+        </div>`;
+    }
+
+    function renderComplete(data) {
+      const ctx = state.context;
+      
+      // SEO data
+      const seoTitle = data.seo?.title?.content || data.title || '';
+      const seoTitleLength = data.seo?.title?.length || seoTitle.length || 0;
+      const seoDescription = data.seo?.metaDescription?.content || '';
+      const seoDescLength = data.seo?.metaDescription?.length || 0;
+      
+      // SEO issues
+      const seoIssues = data.seo?.issues || [];
+      const seoIssuesHtml = seoIssues.length > 0
+        ? seoIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
+        : '<span class="detail-row__value--success">None</span>';
+      
+      // Heading issues
+      const headingIssues = data.headingStructure?.issues || [];
+      const headingIssuesHtml = headingIssues.length > 0
+        ? headingIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
+        : '<span class="detail-row__value--success">None</span>';
+      
+      // Blocks
+      const blocks = data.blocks?.blockNames?.length > 0
+        ? data.blocks.blockNames.join(', ')
+        : 'None';
+
+      return `
+        <p class="status-message status-message--complete">
+          Page has been published by ${escapeHtml(data.submittedBy || 'Unknown')} at ${data.completedDate ? formatDate(data.completedDate) : 'N/A'}.
+        </p>
+        <div class="page-details">
+          <div class="detail-row">
+            <span class="detail-row__label">Status:</span>
+            <span class="detail-row__value"><span class="status-badge status-badge--complete">Complete</span></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">Title:</span>
+            <span class="detail-row__value">${escapeHtml(seoTitle || ctx.path)} <span class="char-count">(${seoTitleLength} chars)</span></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">Name:</span>
+            <span class="detail-row__value">${escapeHtml(data.name || ctx.path)}</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">Description:</span>
+            <span class="detail-row__value">${seoDescription ? escapeHtml(seoDescription) : '<em>No description</em>'} <span class="char-count">(${seoDescLength} chars)</span></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">Published By:</span>
+            <span class="detail-row__value">${escapeHtml(data.submittedBy || 'Unknown')}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">Published On:</span>
+            <span class="detail-row__value">${data.completedDate ? formatDate(data.completedDate) : 'N/A'}</span>
+          </div>
+          ${data.notes ? `
+            <div class="detail-row detail-row--full-width">
+              <span class="detail-row__label">Notes:</span>
+              <span class="detail-row__value">${escapeHtml(data.notes)}</span>
+            </div>` : ''}
+          <div class="detail-row">
+            <span class="detail-row__label">Blocks:</span>
+            <span class="detail-row__value">${data.blocks?.totalBlocks || 0} (${escapeHtml(blocks)})</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">SEO Issues:</span>
+            <span class="detail-row__value ${seoIssues.length > 0 ? 'detail-row__value--warning' : ''}">${seoIssuesHtml}</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">Heading Issues:</span>
+            <span class="detail-row__value ${headingIssues.length > 0 ? 'detail-row__value--warning' : ''}">${headingIssuesHtml}</span>
+          </div>
+        </div>
+        <div class="actions">
+          <a href="${ctx.liveUrl}" target="_blank" class="btn btn--secondary">View Live</a>
+          <button id="refresh-btn" class="btn btn--primary">Refresh Status</button>
+        </div>
+        <p class="info-note">Page is ready for a new review submission if needed.</p>`;
+    }
+
+    function renderNoReview() {
+      const ctx = state.context;
+
+      return `
+        <p class="status-message status-message--no-review">No active review found for this page.</p>
+        <div class="page-details">
+          <div class="detail-row">
+            <span class="detail-row__label">Status:</span>
+            <span class="detail-row__value"><span class="status-badge status-badge--no-review">No Review</span></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">Page:</span>
+            <span class="detail-row__value">${escapeHtml(ctx.path)}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">Page ID:</span>
+            <span class="detail-row__value">${escapeHtml(ctx.pageIdentifier)}</span>
+          </div>
+        </div>
+        <div class="actions">
+          <a href="${ctx.previewUrl}" target="_blank" class="btn btn--secondary">View Preview</a>
+          <button id="refresh-btn" class="btn btn--primary">Refresh Status</button>
+        </div>
+        <p class="info-note">Use "Send For Review" to submit this page for review.</p>`;
+    }
+
+    // ============================================
+    // RENDER ENGINE
+    // ============================================
+    function render(viewState) {
+      const app = document.getElementById('app');
       let content = '';
-      const headerHtml = `<div class="header-bar"><img src="${CONFIG.logoPath}" alt="Agilent Logo" class="logo" /></div>`;
 
-      if (state.status === 'loading') {
-        content = `<div class="notice"><div class="spinner"></div><p class="status-message loading">${state.message}</p></div>`;
-      }
-      else if (state.status === 'error') {
-        content = `<div class="notice"><p class="status-message error">${state.message}</p><button id="retry-btn" class="btn btn-primary" style="margin-top:12px;">Retry</button></div>`;
-      }
-      else if (state.status === 'in-review') {
-        const d = state.data;
-        content = `
-          <p class="status-message in-review">Page review is in progress.</p>
-          <div class="page-details">
-            <div class="detail-row"><span class="label">Page:</span><span class="value">${currentContext.path}</span></div>
-            <div class="detail-row"><span class="label">Status:</span><span class="value"><span class="status-badge in-review">In Review</span></span></div>
-            <div class="detail-row"><span class="label">Title:</span><span class="value">${d.title || 'N/A'}</span></div>
-            <div class="detail-row"><span class="label">Submitted By:</span><span class="value">${d.submittedBy || 'Unknown'}</span></div>
-            <div class="detail-row"><span class="label">Submitted On:</span><span class="value">${d.submittedDate ? formatDate(d.submittedDate) : 'N/A'}</span></div>
-            ${d.notes ? `<div class="detail-row full-width"><span class="label">Notes:</span><span class="value">${d.notes}</span></div>` : ''}
-          </div>
-          <div class="actions">
-            <a href="${currentContext.previewUrl}" target="_blank" class="btn btn-secondary">View Preview</a>
-            <button id="refresh-btn" class="btn btn-primary">Refresh Status</button>
-          </div>`;
-      }
-      else if (state.status === 'complete') {
-        const d = state.data || {};
-        content = `
-          <p class="status-message complete">Page review has been completed.</p>
-          <div class="page-details">
-            <div class="detail-row"><span class="label">Page:</span><span class="value">${currentContext.path}</span></div>
-            <div class="detail-row"><span class="label">Status:</span><span class="value"><span class="status-badge complete">Complete</span></span></div>
-            ${d.completedDate ? `<div class="detail-row"><span class="label">Completed On:</span><span class="value">${formatDate(d.completedDate)}</span></div>` : ''}
-          </div>
-          <div class="actions">
-            <a href="${currentContext.liveUrl}" target="_blank" class="btn btn-secondary">View Live</a>
-            <button id="refresh-btn" class="btn btn-primary">Refresh Status</button>
-          </div>
-          <p class="info-note">Page is ready for a new review submission if needed.</p>`;
-      }
-      else if (state.status === 'no-review') {
-        content = `
-          <p class="status-message no-review">No active review found for this page.</p>
-          <div class="page-details">
-            <div class="detail-row"><span class="label">Page:</span><span class="value">${currentContext.path}</span></div>
-            <div class="detail-row"><span class="label">Status:</span><span class="value"><span class="status-badge no-review">No Review</span></span></div>
-            <div class="detail-row"><span class="label">Page ID:</span><span class="value">${currentContext.pageIdentifier}</span></div>
-          </div>
-          <div class="actions">
-            <a href="${currentContext.previewUrl}" target="_blank" class="btn btn-secondary">View Preview</a>
-            <button id="refresh-btn" class="btn btn-primary">Refresh Status</button>
-          </div>
-          <p class="info-note">Use "Send For Review" to submit this page for review.</p>`;
+      switch (viewState.status) {
+        case STATUS.LOADING:
+          content = renderLoading(viewState.message);
+          break;
+        case STATUS.ERROR:
+          content = renderError(viewState.message);
+          break;
+        case STATUS.IN_REVIEW:
+          content = renderInReview(viewState.data);
+          break;
+        case STATUS.COMPLETE:
+          content = renderComplete(viewState.data);
+          break;
+        case STATUS.NO_REVIEW:
+          content = renderNoReview();
+          break;
+        default:
+          content = renderError('Unknown state');
       }
 
-      details.innerHTML = `<div id="status-card">${headerHtml}<div class="content">${content}</div></div>`;
+      app.innerHTML = `<div class="status-card">${renderHeader()}<div class="content">${content}</div></div>`;
+      attachEventListeners();
+    }
 
-      // Event listeners
+    // ============================================
+    // EVENT HANDLERS
+    // ============================================
+    function attachEventListeners() {
       document.getElementById('retry-btn')?.addEventListener('click', init);
       document.getElementById('refresh-btn')?.addEventListener('click', init);
+      document.getElementById('debug-toggle')?.addEventListener('click', toggleDebugPanel);
+    }
+
+    function toggleDebugPanel() {
+      const panel = document.getElementById('debug-panel');
+      if (panel) {
+        panel.classList.toggle('debug-panel--visible');
+        panel.textContent = state.debugLogs.join('\n');
+      }
     }
 
     // ============================================
     // INITIALIZATION
     // ============================================
     async function init() {
-      renderCard({ status: 'loading', message: 'Checking page status…' });
-      
+      render({ status: STATUS.LOADING, message: 'Checking page status…' });
+
       try {
-        currentContext = await getFullContext();
-        if (!currentContext.org || !currentContext.site) {
-          renderCard({ status: 'error', message: 'Could not determine page context. Make sure you have a page open.' });
+        state.context = await getFullContext();
+
+        if (!state.context.org || !state.context.site) {
+          render({ status: STATUS.ERROR, message: 'Could not determine page context. Make sure you have a page open.' });
           return;
         }
 
-        // Check status from Make.com Data Store
-        const statusResponse = await checkReviewStatus(currentContext);
-        
+        const statusResponse = await checkReviewStatus(state.context);
+
         if (!statusResponse) {
-          renderCard({ status: 'error', message: 'Failed to check status. Please try again.' });
+          render({ status: STATUS.ERROR, message: 'Failed to check status. Please try again.' });
           return;
         }
 
         if (statusResponse.status === 'in-review') {
-          renderCard({ status: 'in-review', data: statusResponse });
+          render({ status: STATUS.IN_REVIEW, data: statusResponse });
         } else if (statusResponse.status === 'complete') {
-          renderCard({ status: 'complete', data: statusResponse });
+          render({ status: STATUS.COMPLETE, data: statusResponse });
         } else {
-          renderCard({ status: 'no-review' });
+          render({ status: STATUS.NO_REVIEW });
         }
-        
-      } catch (err) {
-        log('Init error', err.message);
-        renderCard({ status: 'error', message: `Error: ${err.message}` });
+      } catch (error) {
+        log('Init error', error.message);
+        render({ status: STATUS.ERROR, message: `Error: ${error.message}` });
       }
     }
 
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-    else init();
+    // Start
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
   </script>
 </body>
 </html>
