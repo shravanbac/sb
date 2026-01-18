@@ -379,7 +379,7 @@
       return path
         .replace(/^\/+/, '')
         .replace(/\.html$/, '')
-        .replace(/\/index$/, '/index');
+        .replace(/\/index$/, '');
     }
 
     function isIndexPage(path) {
@@ -486,6 +486,7 @@
       try {
         const url = new URL(document.referrer);
 
+        // Match DA.live editor URL: da.live/edit#/org/site/path
         const daMatch = url.href.match(/da\.live\/edit#\/(.*?)\/(.*?)\/(.*)/);
         if (daMatch) {
           return {
@@ -497,6 +498,7 @@
           };
         }
 
+        // Match AEM URL: ref--site--org.aem.page/path
         const aemMatch = url.host.match(/(.*?)--(.*?)--(.*?)\.aem\.(page|live)/);
         if (aemMatch) {
           return {
@@ -509,6 +511,29 @@
         }
       } catch {
         // Invalid referrer
+      }
+
+      return null;
+    }
+
+    function getContextFromDALiveHash() {
+      // Extract context from DA.live hash: da.live/edit#/org/site/path
+      const hash = window.location.hash || window.parent.location.hash;
+      if (!hash) return null;
+
+      try {
+        const hashMatch = hash.match(/#\/(.*?)\/(.*?)\/(.*)/);
+        if (hashMatch) {
+          return {
+            org: hashMatch[1],
+            site: hashMatch[2],
+            path: hashMatch[3] || 'index',
+            ref: 'main',
+            source: 'da.live-hash',
+          };
+        }
+      } catch {
+        // Hash parsing failed
       }
 
       return null;
@@ -555,14 +580,30 @@
       return null;
     }
 
+    function extractRefFromCanonical(html) {
+      // Extract ref from canonical URL in HTML
+      try {
+        const canonicalMatch = html.match(/<link[^>]+rel=["\']canonical["\'][^>]+href=["\']https:\/\/([^-]+)--/);
+        if (canonicalMatch) {
+          return canonicalMatch[1];
+        }
+      } catch {
+        // Canonical extraction failed
+      }
+      return null;
+    }
+
     async function getFullContext() {
       const urlParams = getContextFromURLParams();
       const referrerCtx = getContextFromReferrer();
+      const hashCtx = getContextFromDALiveHash();
       const sdkCtx = await getContextFromDASDK();
       const pluginOrigin = detectPluginOrigin();
 
-      let path = sdkCtx?.path || referrerCtx?.path || urlParams.path || 'index';
+      // Priority order for path: SDK > Hash > Referrer > URL params > default
+      let path = sdkCtx?.path || hashCtx?.path || referrerCtx?.path || urlParams.path || 'index';
 
+      // Clean up path if it contains plugin route
       if (path.includes('tools/send-for-review') || path.includes('send-for-review-library')) {
         path = 'index';
       }
@@ -570,14 +611,20 @@
       path = normalizePath(path);
 
       const ctx = {
-        ref: sdkCtx?.ref || referrerCtx?.ref || urlParams.ref || CONFIG.defaultRef,
-        site: sdkCtx?.site || referrerCtx?.site || urlParams.site || '',
-        org: sdkCtx?.org || referrerCtx?.org || urlParams.org || '',
+        ref: pluginOrigin?.pluginRef || sdkCtx?.ref || referrerCtx?.ref || urlParams.ref || CONFIG.defaultRef,
+        site: sdkCtx?.site || hashCtx?.site || referrerCtx?.site || urlParams.site || '',
+        org: sdkCtx?.org || hashCtx?.org || referrerCtx?.org || urlParams.org || '',
         path,
         email: sdkCtx?.email || '',
-        source: sdkCtx?.source || referrerCtx?.source || 'url-params',
-        ...pluginOrigin,
+        source: sdkCtx?.source || hashCtx?.source || referrerCtx?.source || 'url-params',
       };
+
+      // Override with plugin origin if available
+      if (pluginOrigin) {
+        ctx.ref = pluginOrigin.pluginRef;
+        ctx.site = pluginOrigin.pluginSite || ctx.site;
+        ctx.org = pluginOrigin.pluginOrg || ctx.org;
+      }
 
       ctx.host = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.page`;
       const urlPath = buildUrlPath(ctx.path);
@@ -585,10 +632,8 @@
       ctx.liveUrl = `https://${ctx.ref}--${ctx.site}--${ctx.org}.aem.live${urlPath}`;
       ctx.plainUrl = `https://${ctx.host}${ctx.path}.plain.html`;
 
-      if (ctx.pluginRef) {
-        ctx.site = ctx.pluginSite || ctx.site;
-        ctx.org = ctx.pluginOrg || ctx.org;
-        ctx.sameOriginHost = `${ctx.pluginRef}--${ctx.site}--${ctx.org}.aem.page`;
+      if (pluginOrigin) {
+        ctx.sameOriginHost = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.page`;
         ctx.sameOriginPreviewUrl = `https://${ctx.sameOriginHost}${urlPath}`;
         ctx.sameOriginPlainUrl = `https://${ctx.sameOriginHost}${ctx.path}.plain.html`;
         log('Same-origin URLs available', { sameOriginHost: ctx.sameOriginHost });
@@ -597,7 +642,7 @@
       ctx.daContentUrl = `https://content.da.live/${ctx.org}/${ctx.site}${ctx.path}`;
       ctx.daSourceUrl = `https://admin.da.live/source/${ctx.org}/${ctx.site}${ctx.path}.html`;
       ctx.env = 'page';
-      ctx.pageIdentifier = `${ctx.org}/${ctx.site}/${ctx.path}`;
+      ctx.pageIdentifier = `${ctx.org}/${ctx.site}/${ctx.ref}/${ctx.path}`;
 
       log('Final context', ctx);
       return ctx;
@@ -718,7 +763,16 @@
 
       for (const strategy of strategies) {
         const content = await fetchFromUrl(strategy.url, strategy.source, strategy);
-        if (content) return content;
+        if (content) {
+          // Extract ref from canonical URL if available
+          if (!needsFullHTML && content.html) {
+            const extractedRef = extractRefFromCanonical(content.html);
+            if (extractedRef && extractedRef !== ctx.ref) {
+              log('Ref extracted from canonical', { extracted: extractedRef, current: ctx.ref });
+            }
+          }
+          return content;
+        }
       }
 
       try {
