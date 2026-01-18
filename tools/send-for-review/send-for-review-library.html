@@ -516,29 +516,6 @@
       return null;
     }
 
-    function getContextFromDALiveHash() {
-      // Extract context from DA.live hash: da.live/edit#/org/site/path
-      const hash = window.location.hash || window.parent.location.hash;
-      if (!hash) return null;
-
-      try {
-        const hashMatch = hash.match(/#\/(.*?)\/(.*?)\/(.*)/);
-        if (hashMatch) {
-          return {
-            org: hashMatch[1],
-            site: hashMatch[2],
-            path: hashMatch[3] || 'index',
-            ref: 'main',
-            source: 'da.live-hash',
-          };
-        }
-      } catch {
-        // Hash parsing failed
-      }
-
-      return null;
-    }
-
     async function getContextFromDASDK() {
       try {
         const DASDK = await import('https://da.live/nx/utils/sdk.js');
@@ -555,8 +532,8 @@
             source: 'da-sdk',
           };
         }
-      } catch {
-        // SDK unavailable
+      } catch (error) {
+        log('DA SDK not available', error.message);
       }
 
       return null;
@@ -593,15 +570,42 @@
       return null;
     }
 
+    async function requestContextFromParent() {
+      // Request context from parent via postMessage (safe cross-origin communication)
+      return new Promise((resolve) => {
+        if (window.parent === window) {
+          resolve(null);
+          return;
+        }
+
+        const timeout = setTimeout(() => resolve(null), 2000);
+
+        const handler = (event) => {
+          if (event.data?.type === 'da-context-response') {
+            clearTimeout(timeout);
+            window.removeEventListener('message', handler);
+            resolve(event.data.context);
+          }
+        };
+
+        window.addEventListener('message', handler);
+
+        // Request context from parent
+        window.parent.postMessage({
+          type: 'da-context-request',
+        }, '*');
+      });
+    }
+
     async function getFullContext() {
       const urlParams = getContextFromURLParams();
       const referrerCtx = getContextFromReferrer();
-      const hashCtx = getContextFromDALiveHash();
       const sdkCtx = await getContextFromDASDK();
       const pluginOrigin = detectPluginOrigin();
+      const parentCtx = await requestContextFromParent();
 
-      // Priority order for path: SDK > Hash > Referrer > URL params > default
-      let path = sdkCtx?.path || hashCtx?.path || referrerCtx?.path || urlParams.path || 'index';
+      // Priority order for path: SDK > Parent > Referrer > URL params > default
+      let path = sdkCtx?.path || parentCtx?.path || referrerCtx?.path || urlParams.path || 'index';
 
       // Clean up path if it contains plugin route
       if (path.includes('tools/send-for-review') || path.includes('send-for-review-library')) {
@@ -611,12 +615,12 @@
       path = normalizePath(path);
 
       const ctx = {
-        ref: pluginOrigin?.pluginRef || sdkCtx?.ref || referrerCtx?.ref || urlParams.ref || CONFIG.defaultRef,
-        site: sdkCtx?.site || hashCtx?.site || referrerCtx?.site || urlParams.site || '',
-        org: sdkCtx?.org || hashCtx?.org || referrerCtx?.org || urlParams.org || '',
+        ref: pluginOrigin?.pluginRef || sdkCtx?.ref || parentCtx?.ref || referrerCtx?.ref || urlParams.ref || CONFIG.defaultRef,
+        site: sdkCtx?.site || parentCtx?.site || referrerCtx?.site || urlParams.site || '',
+        org: sdkCtx?.org || parentCtx?.org || referrerCtx?.org || urlParams.org || '',
         path,
-        email: sdkCtx?.email || '',
-        source: sdkCtx?.source || hashCtx?.source || referrerCtx?.source || 'url-params',
+        email: sdkCtx?.email || parentCtx?.email || '',
+        source: sdkCtx?.source || parentCtx?.source || referrerCtx?.source || 'url-params',
       };
 
       // Override with plugin origin if available
