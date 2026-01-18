@@ -586,18 +586,6 @@
               <span class="detail-row__label">Notes:</span>
               <span class="detail-row__value">${escapeHtml(data.notes)}</span>
             </div>` : ''}
-          <div class="detail-row">
-            <span class="detail-row__label">Blocks:</span>
-            <span class="detail-row__value">${data.blocks?.totalBlocks || 0} (${escapeHtml(blocks)})</span>
-          </div>
-          <div class="detail-row detail-row--full-width">
-            <span class="detail-row__label">SEO Issues:</span>
-            <span class="detail-row__value ${seoIssues.length > 0 ? 'detail-row__value--warning' : ''}">${seoIssuesHtml}</span>
-          </div>
-          <div class="detail-row detail-row--full-width">
-            <span class="detail-row__label">Heading Issues:</span>
-            <span class="detail-row__value ${headingIssues.length > 0 ? 'detail-row__value--warning' : ''}">${headingIssuesHtml}</span>
-          </div>
         </div>
         <div class="actions">
           <a href="${ctx.previewUrl}" target="_blank" class="btn btn--secondary">View Preview</a>
@@ -665,18 +653,6 @@
               <span class="detail-row__label">Notes:</span>
               <span class="detail-row__value">${escapeHtml(data.notes)}</span>
             </div>` : ''}
-          <div class="detail-row">
-            <span class="detail-row__label">Blocks:</span>
-            <span class="detail-row__value">${data.blocks?.totalBlocks || 0} (${escapeHtml(blocks)})</span>
-          </div>
-          <div class="detail-row detail-row--full-width">
-            <span class="detail-row__label">SEO Issues:</span>
-            <span class="detail-row__value ${seoIssues.length > 0 ? 'detail-row__value--warning' : ''}">${seoIssuesHtml}</span>
-          </div>
-          <div class="detail-row detail-row--full-width">
-            <span class="detail-row__label">Heading Issues:</span>
-            <span class="detail-row__value ${headingIssues.length > 0 ? 'detail-row__value--warning' : ''}">${headingIssuesHtml}</span>
-          </div>
         </div>
         <div class="actions">
           <a href="${ctx.liveUrl}" target="_blank" class="btn btn--secondary">View Live</a>
