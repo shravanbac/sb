@@ -283,6 +283,7 @@
       cursor: pointer;
       margin-top: 12px;
       text-decoration: underline;
+      text-align: center;
     }
 
     .debug-panel {
@@ -294,7 +295,7 @@
       font-family: monospace;
       white-space: pre-wrap;
       word-break: break-all;
-      max-height: 150px;
+      max-height: 200px;
       overflow-y: auto;
       display: none;
     }
@@ -351,7 +352,7 @@
     function log(message, data = null) {
       const timestamp = new Date().toISOString().slice(11, 19);
       const logEntry = data
-        ? `${timestamp} ${message}: ${JSON.stringify(data).slice(0, 200)}`
+        ? `${timestamp} ${message}: ${JSON.stringify(data).slice(0, 300)}`
         : `${timestamp} ${message}`;
       console.log('[SFR]', timestamp, message, data);
       state.debugLogs.push(logEntry);
@@ -376,6 +377,7 @@
     }
 
     function normalizePath(path) {
+      if (!path) return '';
       return path
         .replace(/^\/+/, '')
         .replace(/\.html$/, '')
@@ -418,7 +420,7 @@
     // ============================================================================
 
     async function checkReviewStatus(ctx) {
-      log('Checking review status');
+      log('Checking review status', { pageIdentifier: ctx.pageIdentifier });
       try {
         const response = await fetch(CONFIG.statusWebhookUrl, {
           method: 'POST',
@@ -472,12 +474,18 @@
 
     function getContextFromURLParams() {
       const params = new URLSearchParams(window.location.search);
-      return {
+      const ctx = {
         ref: params.get('ref') || '',
         site: params.get('site') || params.get('repo') || '',
         org: params.get('org') || params.get('owner') || '',
         path: params.get('path') || '',
       };
+
+      if (ctx.path || ctx.org || ctx.site) {
+        log('Context from URL params', ctx);
+      }
+
+      return ctx;
     }
 
     function getContextFromReferrer() {
@@ -485,32 +493,38 @@
 
       try {
         const url = new URL(document.referrer);
+        log('Processing referrer', { href: url.href });
 
         // Match DA.live editor URL: da.live/edit#/org/site/path
-        const daMatch = url.href.match(/da\.live\/edit#\/(.*?)\/(.*?)\/(.*)/);
+        const daMatch = url.href.match(/da\.live\/edit#\/(.*?)\/(.*?)\/(.*?)(?:\?|$)/);
         if (daMatch) {
-          return {
+          const ctx = {
             org: daMatch[1],
             site: daMatch[2],
             path: daMatch[3] || 'index',
             ref: 'main',
             source: 'da.live-referrer',
           };
+          log('Extracted from DA.live referrer', ctx);
+          return ctx;
         }
 
         // Match AEM URL: ref--site--org.aem.page/path
         const aemMatch = url.host.match(/(.*?)--(.*?)--(.*?)\.aem\.(page|live)/);
         if (aemMatch) {
-          return {
+          const pathname = url.pathname.replace(/^\//, '').replace(/\.html$/, '');
+          const ctx = {
             ref: aemMatch[1],
             site: aemMatch[2],
             org: aemMatch[3],
-            path: url.pathname.replace(/^\//, '') || 'index',
+            path: pathname || 'index',
             source: 'aem-referrer',
           };
+          log('Extracted from AEM referrer', ctx);
+          return ctx;
         }
-      } catch {
-        // Invalid referrer
+      } catch (error) {
+        log('Referrer parse error', error.message);
       }
 
       return null;
@@ -518,12 +532,20 @@
 
     async function getContextFromDASDK() {
       try {
+        log('Attempting to load DA SDK');
         const DASDK = await import('https://da.live/nx/utils/sdk.js');
         const sdk = await DASDK.default();
         state.daSDKInstance = sdk;
 
+        log('DA SDK loaded', {
+          hasContext: !!sdk?.context,
+          org: sdk?.context?.org,
+          site: sdk?.context?.repo,
+          path: sdk?.context?.path,
+        });
+
         if (sdk?.context) {
-          return {
+          const ctx = {
             org: sdk.context.org || sdk.context.owner || '',
             site: sdk.context.repo || '',
             ref: sdk.context.ref || 'main',
@@ -531,6 +553,8 @@
             email: sdk.context.email || sdk.context.user?.email || '',
             source: 'da-sdk',
           };
+          log('Context from DA SDK', ctx);
+          return ctx;
         }
       } catch (error) {
         log('DA SDK not available', error.message);
@@ -546,89 +570,53 @@
       if (aemMatch) {
         const parts = aemMatch[1].split('--');
         if (parts.length >= 3) {
-          return {
+          const origin = {
             pluginRef: parts[0],
             pluginSite: parts[1],
             pluginOrg: parts.slice(2).join('--'),
           };
+          log('Plugin origin detected', origin);
+          return origin;
         }
       }
 
       return null;
-    }
-
-    function extractRefFromCanonical(html) {
-      // Extract ref from canonical URL in HTML
-      try {
-        const canonicalMatch = html.match(/<link[^>]+rel=["\']canonical["\'][^>]+href=["\']https:\/\/([^-]+)--/);
-        if (canonicalMatch) {
-          return canonicalMatch[1];
-        }
-      } catch {
-        // Canonical extraction failed
-      }
-      return null;
-    }
-
-    async function requestContextFromParent() {
-      // Request context from parent via postMessage (safe cross-origin communication)
-      return new Promise((resolve) => {
-        if (window.parent === window) {
-          resolve(null);
-          return;
-        }
-
-        const timeout = setTimeout(() => resolve(null), 2000);
-
-        const handler = (event) => {
-          if (event.data?.type === 'da-context-response') {
-            clearTimeout(timeout);
-            window.removeEventListener('message', handler);
-            resolve(event.data.context);
-          }
-        };
-
-        window.addEventListener('message', handler);
-
-        // Request context from parent
-        window.parent.postMessage({
-          type: 'da-context-request',
-        }, '*');
-      });
     }
 
     async function getFullContext() {
+      log('=== Starting context detection ===');
+
       const urlParams = getContextFromURLParams();
       const referrerCtx = getContextFromReferrer();
       const sdkCtx = await getContextFromDASDK();
       const pluginOrigin = detectPluginOrigin();
-      const parentCtx = await requestContextFromParent();
 
-      // Priority order for path: SDK > Parent > Referrer > URL params > default
-      let path = sdkCtx?.path || parentCtx?.path || referrerCtx?.path || urlParams.path || 'index';
+      log('All context sources', {
+        urlParams,
+        referrerCtx,
+        sdkCtx,
+        pluginOrigin,
+      });
+
+      // Priority order for path: SDK > Referrer > URL params
+      let path = sdkCtx?.path || referrerCtx?.path || urlParams.path || 'index';
 
       // Clean up path if it contains plugin route
       if (path.includes('tools/send-for-review') || path.includes('send-for-review-library')) {
+        log('Path contains plugin route, defaulting to index');
         path = 'index';
       }
 
       path = normalizePath(path);
 
       const ctx = {
-        ref: pluginOrigin?.pluginRef || sdkCtx?.ref || parentCtx?.ref || referrerCtx?.ref || urlParams.ref || CONFIG.defaultRef,
-        site: sdkCtx?.site || parentCtx?.site || referrerCtx?.site || urlParams.site || '',
-        org: sdkCtx?.org || parentCtx?.org || referrerCtx?.org || urlParams.org || '',
+        ref: pluginOrigin?.pluginRef || sdkCtx?.ref || referrerCtx?.ref || urlParams.ref || CONFIG.defaultRef,
+        site: pluginOrigin?.pluginSite || sdkCtx?.site || referrerCtx?.site || urlParams.site || '',
+        org: pluginOrigin?.pluginOrg || sdkCtx?.org || referrerCtx?.org || urlParams.org || '',
         path,
-        email: sdkCtx?.email || parentCtx?.email || '',
-        source: sdkCtx?.source || parentCtx?.source || referrerCtx?.source || 'url-params',
+        email: sdkCtx?.email || '',
+        source: sdkCtx?.source || referrerCtx?.source || pluginOrigin ? 'plugin-origin' : 'url-params',
       };
-
-      // Override with plugin origin if available
-      if (pluginOrigin) {
-        ctx.ref = pluginOrigin.pluginRef;
-        ctx.site = pluginOrigin.pluginSite || ctx.site;
-        ctx.org = pluginOrigin.pluginOrg || ctx.org;
-      }
 
       ctx.host = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.page`;
       const urlPath = buildUrlPath(ctx.path);
@@ -637,10 +625,10 @@
       ctx.plainUrl = `https://${ctx.host}${ctx.path}.plain.html`;
 
       if (pluginOrigin) {
-        ctx.sameOriginHost = `${ctx.ref}--${ctx.site}--${ctx.org}.aem.page`;
-        ctx.sameOriginPreviewUrl = `https://${ctx.sameOriginHost}${urlPath}`;
-        ctx.sameOriginPlainUrl = `https://${ctx.sameOriginHost}${ctx.path}.plain.html`;
-        log('Same-origin URLs available', { sameOriginHost: ctx.sameOriginHost });
+        ctx.sameOriginHost = ctx.host;
+        ctx.sameOriginPreviewUrl = ctx.previewUrl;
+        ctx.sameOriginPlainUrl = ctx.plainUrl;
+        log('Same-origin available');
       }
 
       ctx.daContentUrl = `https://content.da.live/${ctx.org}/${ctx.site}${ctx.path}`;
@@ -648,7 +636,7 @@
       ctx.env = 'page';
       ctx.pageIdentifier = `${ctx.org}/${ctx.site}/${ctx.ref}/${ctx.path}`;
 
-      log('Final context', ctx);
+      log('=== Final context ===', ctx);
       return ctx;
     }
 
@@ -666,7 +654,7 @@
         if (doc) {
           const html = typeof doc === 'string' ? doc : (doc.outerHTML || doc.innerHTML);
           if (html) {
-            log('DA SDK content found');
+            log('DA SDK content found', { length: html.length });
             return { html, source: 'da-sdk', isPlain: true };
           }
         }
@@ -679,7 +667,7 @@
 
     async function fetchFromUrl(url, source, options = {}) {
       try {
-        log(`Trying ${source}`, url);
+        log(`Trying ${source}`, { url });
         const fetchOptions = {
           cache: 'no-store',
           ...options,
@@ -697,7 +685,7 @@
           return { html, source, isPlain: options.isPlain ?? true };
         }
 
-        log(`${source} returned`, response.status);
+        log(`${source} returned`, { status: response.status });
       } catch (error) {
         log(`${source} error`, error.message);
       }
@@ -705,34 +693,9 @@
       return null;
     }
 
-    async function fetchViaParentMessage(ctx) {
-      return new Promise((resolve) => {
-        if (window.parent === window) {
-          resolve(null);
-          return;
-        }
-
-        const timeout = setTimeout(() => resolve(null), 2000);
-
-        const handler = (event) => {
-          if (event.data?.type === 'da-content-response' && event.data?.path === ctx.path) {
-            clearTimeout(timeout);
-            window.removeEventListener('message', handler);
-            resolve(event.data.content);
-          }
-        };
-
-        window.addEventListener('message', handler);
-        window.parent.postMessage({
-          type: 'da-content-request',
-          path: ctx.path,
-          org: ctx.org,
-          site: ctx.site,
-        }, '*');
-      });
-    }
-
     async function fetchContent(ctx, needsFullHTML = false) {
+      log('=== Starting content fetch ===', { needsFullHTML });
+
       const sdkContent = await fetchFromSDK();
       if (sdkContent) return sdkContent;
 
@@ -767,29 +730,10 @@
 
       for (const strategy of strategies) {
         const content = await fetchFromUrl(strategy.url, strategy.source, strategy);
-        if (content) {
-          // Extract ref from canonical URL if available
-          if (!needsFullHTML && content.html) {
-            const extractedRef = extractRefFromCanonical(content.html);
-            if (extractedRef && extractedRef !== ctx.ref) {
-              log('Ref extracted from canonical', { extracted: extractedRef, current: ctx.ref });
-            }
-          }
-          return content;
-        }
+        if (content) return content;
       }
 
-      try {
-        log('Trying parent postMessage');
-        const content = await fetchViaParentMessage(ctx);
-        if (content) {
-          log('Parent postMessage success', { length: content.length });
-          return { html: content, source: 'parent-message', isPlain: true };
-        }
-      } catch (error) {
-        log('Parent postMessage error', error.message);
-      }
-
+      log('All content fetch strategies failed');
       return null;
     }
 
@@ -893,14 +837,12 @@
       const lang = doc.documentElement?.lang || '';
       const issues = [];
 
-      // Title validation: 55 chars max with spaces
       if (!title) {
         issues.push('Missing title');
       } else if (title.length > CONFIG.seo.titleMaxLength) {
         issues.push(`Title too long (${title.length} chars, max ${CONFIG.seo.titleMaxLength})`);
       }
 
-      // Description validation: 160 chars max with spaces
       if (!description) {
         issues.push('Missing description');
       } else if (description.length > CONFIG.seo.descriptionMaxLength) {
@@ -1216,7 +1158,7 @@
           <p class="status-message status-message--error">${escapeHtml(message)}</p>
           <button id="retry-btn" class="btn btn--primary" style="margin-top: 12px">Retry</button>
         </div>
-        <div class="debug-toggle" id="debug-toggle">Show debug info</div>
+        <div class="debug-toggle" id="debug-toggle">Show debug logs</div>
         <div class="debug-panel" id="debug-panel"></div>
       `;
     }
@@ -1250,6 +1192,8 @@
           <button id="submit-btn" class="btn btn--primary" disabled title="Review already in progress">Submit for Review</button>
         </div>
         <p class="info-note">Complete the current review before submitting a new one.</p>
+        <div class="debug-toggle" id="debug-toggle">Show debug logs</div>
+        <div class="debug-panel" id="debug-panel"></div>
       `;
     }
 
@@ -1296,6 +1240,8 @@
           <button id="submit-btn" class="btn btn--primary">Submit for Review</button>
         </div>
         <p class="info-note">You can submit a new review for this published page.</p>
+        <div class="debug-toggle" id="debug-toggle">Show debug logs</div>
+        <div class="debug-panel" id="debug-panel"></div>
       `;
     }
 
@@ -1350,6 +1296,8 @@
         <div class="actions">
           <button id="submit-btn" class="btn btn--primary">Submit for Review</button>
         </div>
+        <div class="debug-toggle" id="debug-toggle">Show debug logs</div>
+        <div class="debug-panel" id="debug-panel"></div>
       `;
     }
 
@@ -1391,6 +1339,8 @@
         <div class="actions">
           <button id="submit-btn" class="btn btn--primary">Submit for Review</button>
         </div>
+        <div class="debug-toggle" id="debug-toggle">Show debug logs</div>
+        <div class="debug-panel" id="debug-panel"></div>
       `;
     }
 
@@ -1421,6 +1371,8 @@
           <a href="${payload.previewUrl}" target="_blank" class="btn btn--secondary">View Preview</a>
         </div>
         <p class="info-note">Review request has been recorded. Use Get Page Current Status to check progress.</p>
+        <div class="debug-toggle" id="debug-toggle">Show debug logs</div>
+        <div class="debug-panel" id="debug-panel"></div>
       `;
     }
 
@@ -1527,10 +1479,12 @@
         if (!state.context.org || !state.context.site) {
           render({
             status: STATUS.ERROR,
-            message: 'Could not determine page context. Make sure you have a page open.',
+            message: 'Could not determine page context. Make sure you have a page open in DA.live editor.',
           });
           return;
         }
+
+        log('Context validated', { org: state.context.org, site: state.context.site, path: state.context.path });
 
         render({ status: STATUS.LOADING, message: 'Checking review status...' });
         const statusResponse = await checkReviewStatus(state.context);
@@ -1549,7 +1503,6 @@
 
         render({ status: STATUS.LOADING, message: 'Analyzing page...' });
 
-        // Pass true to fetch full HTML for SEO metadata extraction
         const content = await fetchContent(state.context, true);
         const name = state.context.path.split('/').pop() || 'index';
         let title = name;
@@ -1570,6 +1523,7 @@
             }
           }
 
+          log('Analysis complete', { title, name, seoIssues: state.analysis.seo.issues.length });
           render({ status: STATUS.READY, title, name, analysis: state.analysis });
         } else {
           log('Content fetch failed - showing minimal form');
