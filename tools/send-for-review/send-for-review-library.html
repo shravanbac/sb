@@ -1121,25 +1121,64 @@
         <p class="info-note">Complete the current review before submitting a new one.</p>`;
     }
 
-    function renderComplete(data) {
+    function renderComplete(viewState) {
       const ctx = state.context;
       const storedEmail = storage.getEmail();
+      const data = viewState.data || {};
+      const analysis = viewState.analysis || state.analysis;
+      const name = viewState.name || ctx.path.split('/').pop() || 'index';
+      
+      // Use current analysis for SEO data (not the old submission data)
+      const seoTitle = analysis?.seo?.title?.content || data.title || '';
+      const seoTitleLength = analysis?.seo?.title?.length || seoTitle.length || 0;
+      const seoDescription = analysis?.seo?.metaDescription?.content || '';
+      const seoDescLength = analysis?.seo?.metaDescription?.length || 0;
+      
+      // SEO issues from current analysis
+      const seoIssues = analysis?.seo?.issues || [];
+      const seoIssuesHtml = seoIssues.length > 0 
+        ? seoIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
+        : '<span class="detail-row__value--success">None</span>';
+      
+      // Heading issues from current analysis
+      const headingIssues = analysis?.headingStructure?.issues || [];
+      const headingIssuesHtml = headingIssues.length > 0
+        ? headingIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
+        : '<span class="detail-row__value--success">None</span>';
+      
+      // Blocks from current analysis
+      const blocks = analysis?.blocks?.blockNames?.length > 0 
+        ? analysis.blocks.blockNames.join(', ') 
+        : 'None';
+
       return `
         <p class="status-message status-message--published">
-          Page has been published by ${escapeHtml(data.submittedBy || 'Unknown')} at ${data.completedDate ? formatDate(data.completedDate) : 'N/A'}.
+          Page was published by ${escapeHtml(data.submittedBy || 'Unknown')} at ${data.completedDate ? formatDate(data.completedDate) : 'N/A'}.
         </p>
         <div class="page-details">
           <div class="detail-row">
             <span class="detail-row__label">Title:</span>
-            <span class="detail-row__value">${escapeHtml(data.title || ctx.path)}</span>
+            <span class="detail-row__value">${escapeHtml(seoTitle || name)} <span class="char-count">(${seoTitleLength} chars)</span></span>
           </div>
           <div class="detail-row">
-            <span class="detail-row__label">Published By:</span>
-            <span class="detail-row__value">${escapeHtml(data.submittedBy || 'Unknown')}</span>
+            <span class="detail-row__label">Name:</span>
+            <span class="detail-row__value">${escapeHtml(name)}</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">Description:</span>
+            <span class="detail-row__value ${seoDescLength > CONFIG.seo.descriptionMaxLength ? 'detail-row__value--warning' : ''}">${seoDescription ? escapeHtml(seoDescription) : '<em>No description</em>'} <span class="char-count">(${seoDescLength} chars)</span></span>
           </div>
           <div class="detail-row">
-            <span class="detail-row__label">Published On:</span>
-            <span class="detail-row__value">${data.completedDate ? formatDate(data.completedDate) : 'N/A'}</span>
+            <span class="detail-row__label">Blocks:</span>
+            <span class="detail-row__value">${analysis?.blocks?.totalBlocks || 0} (${escapeHtml(blocks)})</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">SEO Issues:</span>
+            <span class="detail-row__value ${seoIssues.length > 0 ? 'detail-row__value--warning' : ''}">${seoIssuesHtml}</span>
+          </div>
+          <div class="detail-row detail-row--full-width">
+            <span class="detail-row__label">Heading Issues:</span>
+            <span class="detail-row__value ${headingIssues.length > 0 ? 'detail-row__value--warning' : ''}">${headingIssuesHtml}</span>
           </div>
         </div>
         <div class="form-section">
@@ -1352,7 +1391,7 @@
           content = renderInReview(viewState.data);
           break;
         case STATUS.COMPLETE:
-          content = renderComplete(viewState.data);
+          content = renderComplete(viewState);
           break;
         case STATUS.READY:
           content = renderReadyForm(viewState.title, viewState.name, viewState.analysis);
@@ -1430,18 +1469,15 @@
         render({ status: STATUS.LOADING, message: 'Checking review status…' });
         const statusResponse = await checkReviewStatus(state.context);
 
+        // If in-review, just show status (no submit allowed)
         if (statusResponse?.status === STATUS.IN_REVIEW) {
           log('Review in progress', statusResponse);
           render({ status: STATUS.IN_REVIEW, data: statusResponse });
           return;
         }
 
-        if (statusResponse?.status === STATUS.COMPLETE) {
-          log('Page published', statusResponse);
-          render({ status: STATUS.COMPLETE, data: statusResponse });
-          return;
-        }
-
+        // For both 'complete' and 'no review' states, we need to analyze the page
+        // because the user can submit a new review
         render({ status: STATUS.LOADING, message: 'Analyzing page…' });
         const content = await fetchContent(state.context);
         const name = state.context.path.split('/').pop() || 'index';
@@ -1469,11 +1505,28 @@
             const h1 = state.analysis.headingStructure.headings.find((h) => h.level === 1);
             if (h1) title = h1.text;
           }
-          render({ status: STATUS.READY, title, name, analysis: state.analysis });
         } else {
-          log('Content fetch failed - showing minimal form');
+          log('Content fetch failed - using minimal analysis');
           state.analysis = createMinimalAnalysis();
-          render({ status: STATUS.READY_MINIMAL, title, name });
+        }
+
+        // Now render based on status
+        if (statusResponse?.status === STATUS.COMPLETE) {
+          log('Page published - showing form for new review', statusResponse);
+          render({ 
+            status: STATUS.COMPLETE, 
+            data: statusResponse,
+            title,
+            name,
+            analysis: state.analysis
+          });
+        } else {
+          // No active review - show ready form
+          if (content?.html) {
+            render({ status: STATUS.READY, title, name, analysis: state.analysis });
+          } else {
+            render({ status: STATUS.READY_MINIMAL, title, name });
+          }
         }
       } catch (error) {
         log('Init error', error.message);
