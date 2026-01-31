@@ -40,20 +40,17 @@
   <div class="status" id="status"></div>
 
   <script type="module">
-    const WEBHOOK_URL = 'https://hook.fusion.adobe.com/4r1b2137fbuus3vcm1kavi1f2g992y9o';
-    const USERNAME = 'secure-user';
-    const PASSWORD = 'secure';
+    // Auth passed via URL params (browser strips Authorization header in no-cors)
+    const WEBHOOK_URL = 'https://hook.fusion.adobe.com/4r1b2137fbuus3vcm1kavi1f2g992y9o?user=secure-user&pass=secure';
 
     let pageData = {};
 
-    // Listen for page details from DA.live parent
     window.addEventListener('message', async (e) => {
       if (e.data?.path) {
         const { path, repo, org } = e.data;
         const previewUrl = `https://main--${repo}--${org}.aem.page${path.replace(/\.html$/, '')}`;
         const name = path.split('/').pop().replace(/\.html$/, '');
         
-        // Fetch title
         let title = name;
         try {
           const resp = await fetch(previewUrl);
@@ -72,7 +69,6 @@
       }
     });
 
-    // Request context from DA.live
     window.parent.postMessage({ action: 'getContext' }, '*');
 
     function setStatus(type, message) {
@@ -87,21 +83,12 @@
       setStatus('loading', 'Sending...');
 
       try {
-        // Use a CORS proxy or send via parent
-        const credentials = btoa(`${USERNAME}:${PASSWORD}`);
-        
-        // Option 1: Direct call (if Fusion webhook has CORS enabled)
-        const response = await fetch(WEBHOOK_URL, {
+        await fetch(WEBHOOK_URL, {
           method: 'POST',
-          mode: 'no-cors', // This will make it opaque but will still send
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Basic ${credentials}`
-          },
+          mode: 'no-cors',
           body: JSON.stringify(pageData)
         });
 
-        // With no-cors, we can't read response, but request is sent
         setStatus('success', '✓ Data sent to webhook!');
       } catch (e) {
         setStatus('error', '✗ Failed: ' + e.message);
