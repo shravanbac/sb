@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Send Page Data</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; background: #f5f5f5; }
+    .container { max-width: 500px; margin: 0 auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 24px; }
+    h2 { margin-bottom: 20px; color: #333; font-size: 18px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-weight: 600; margin-bottom: 6px; color: #555; font-size: 13px; }
+    .field input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; background: #fafafa; }
+    .field input:focus { outline: none; border-color: #0265dc; background: #fff; }
+    .actions { display: flex; gap: 12px; margin-top: 24px; }
+    button { padding: 10px 20px; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: #0265dc; color: #fff; border: none; }
+    .btn-primary:hover { background: #0254b8; }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-secondary { background: #fff; color: #333; border: 1px solid #ddd; }
+    .btn-secondary:hover { background: #f5f5f5; }
+    .status { margin-top: 16px; padding: 12px; border-radius: 4px; font-size: 13px; display: none; }
+    .status.success { display: block; background: #e6f4ea; color: #1e7e34; }
+    .status.error { display: block; background: #fce8e8; color: #c62828; }
+    .status.loading { display: block; background: #e3f2fd; color: #1565c0; }
+    .payload-preview { margin-top: 16px; padding: 12px; background: #f8f9fa; border-radius: 4px; font-size: 12px; font-family: monospace; white-space: pre-wrap; border: 1px solid #e9ecef; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Send Page Data</h2>
+    
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="title" readonly>
+    </div>
+    
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="name" readonly>
+    </div>
+    
+    <div class="field">
+      <label>Preview URL</label>
+      <input type="text" id="previewUrl" readonly>
+    </div>
+
+    <div class="payload-preview" id="payloadPreview"></div>
+    
+    <div class="actions">
+      <button class="btn-primary" id="sendBtn">Send to Webhook</button>
+      <button class="btn-secondary" id="closeBtn">Close</button>
+    </div>
+    
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    const WEBHOOK_URL = 'https://hook.fusion.adobe.com/4r1b2137fbuus3vcm1kavi1f2g992y9o';
+    const USERNAME = 'secure-user';
+    const PASSWORD = 'secure';
+
+    let pageData = { title: '', name: '', previewUrl: '' };
+
+    // Parse page details from URL params or parent context
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const path = params.get('path') || '';
+      const repo = params.get('repo') || '';
+      const org = params.get('org') || '';
+
+      // Build preview URL
+      const previewUrl = `https://main--${repo}--${org}.aem.page${path}`;
+      const name = path.split('/').pop().replace(/\.html?$/, '');
+
+      // Fetch title from preview page
+      let title = name;
+      try {
+        const resp = await fetch(previewUrl);
+        if (resp.ok) {
+          const html = await resp.text();
+          const match = html.match(/<title>([^<]*)<\/title>/i);
+          if (match) title = match[1].split('|')[0].trim() || name;
+        }
+      } catch (e) {
+        console.warn('Could not fetch title:', e);
+      }
+
+      pageData = { title, name, previewUrl };
+      
+      document.getElementById('title').value = title;
+      document.getElementById('name').value = name;
+      document.getElementById('previewUrl').value = previewUrl;
+      document.getElementById('payloadPreview').textContent = 'Payload:\n' + JSON.stringify(pageData, null, 2);
+    }
+
+    function setStatus(type, message) {
+      const status = document.getElementById('status');
+      status.className = 'status ' + type;
+      status.textContent = message;
+    }
+
+    async function sendToWebhook() {
+      const btn = document.getElementById('sendBtn');
+      btn.disabled = true;
+      setStatus('loading', 'Sending...');
+
+      try {
+        const credentials = btoa(`${USERNAME}:${PASSWORD}`);
+        const response = await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${credentials}`
+          },
+          body: JSON.stringify(pageData)
+        });
+
+        if (response.ok) {
+          setStatus('success', '✓ Data sent successfully!');
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } catch (e) {
+        setStatus('error', '✗ Failed: ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('sendBtn').addEventListener('click', sendToWebhook);
+    document.getElementById('closeBtn').addEventListener('click', () => window.close());
+
+    init();
+  </script>
+</body>
+</html>
