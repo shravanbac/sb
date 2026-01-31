@@ -1,221 +1,181 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Send Page Data</title>
+  <link rel="icon" href="data:,">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16px; }
-    h2 { margin-bottom: 16px; color: #333; font-size: 16px; }
-    .field { margin-bottom: 12px; }
-    .field label { display: block; font-weight: 600; margin-bottom: 4px; color: #555; font-size: 12px; }
-    .field input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background: #fafafa; }
-    .actions { display: flex; gap: 10px; margin-top: 16px; }
-    button { padding: 8px 16px; border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer; }
-    .btn-primary { background: #0265dc; color: #fff; border: none; }
-    .btn-primary:hover { background: #0254b8; }
+    body { font-family: Arial, Helvetica, sans-serif; background: #f7f9fb; color: #333; line-height: 1.5; }
+    .card { background: #fff; border: 1px solid #d9e1e2; box-shadow: 0 2px 6px rgba(0,0,0,0.1); min-height: 100vh; }
+    .header { display: flex; align-items: center; background: #0265dc; padding: 12px 16px; color: #fff; font-weight: 600; }
+    .content { padding: 16px 20px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-weight: 600; color: #004b87; margin-bottom: 4px; font-size: 13px; }
+    .field input { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background: #fafafa; }
+    .actions { display: flex; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; }
+    .btn { flex: 1; padding: 10px 20px; font-size: 14px; font-weight: 600; border-radius: 4px; cursor: pointer; border: none; }
+    .btn-primary { background: #0265dc; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #0254b8; }
     .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
-    .btn-secondary { background: #fff; color: #333; border: 1px solid #ddd; }
-    .status { margin-top: 12px; padding: 10px; border-radius: 4px; font-size: 12px; display: none; }
-    .status.success { display: block; background: #e6f4ea; color: #1e7e34; }
-    .status.error { display: block; background: #fce8e8; color: #c62828; }
-    .status.loading { display: block; background: #e3f2fd; color: #1565c0; }
+    .btn-secondary { background: #fff; color: #0265dc; border: 1px solid #0265dc; }
+    .status { margin-top: 14px; padding: 12px; border-radius: 4px; font-size: 13px; }
+    .status--loading { background: #e3f2fd; color: #1565c0; }
+    .status--success { background: #e6f4ea; color: #1e7e34; }
+    .status--error { background: #fce8e8; color: #c62828; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #1565c0; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <h2>Send Page Data</h2>
-  
-  <div class="field">
-    <label>Title</label>
-    <input type="text" id="title" readonly>
+  <div class="card">
+    <div class="header">Send Page Data</div>
+    <div class="content">
+      <div class="field">
+        <label>Title</label>
+        <input type="text" id="title" readonly>
+      </div>
+      <div class="field">
+        <label>Name</label>
+        <input type="text" id="name" readonly>
+      </div>
+      <div class="field">
+        <label>Preview URL</label>
+        <input type="text" id="previewUrl" readonly>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" id="sendBtn" disabled>Send to Webhook</button>
+        <button class="btn btn-secondary" id="closeBtn">Close</button>
+      </div>
+      <div id="status"></div>
+    </div>
   </div>
-
-  <div class="field">
-    <label>Name</label>
-    <input type="text" id="name" readonly>
-  </div>
-  
-  <div class="field">
-    <label>Preview URL</label>
-    <input type="text" id="previewUrl" readonly>
-  </div>
-
-  <div class="actions">
-    <button class="btn-primary" id="sendBtn">Send to Webhook</button>
-    <button class="btn-secondary" id="closeBtn">Close</button>
-  </div>
-  
-  <div class="status" id="status"></div>
 
   <script type="module">
+    // Adobe I/O Runtime proxy URL
     const RUNTIME_URL = 'https://23750-832emeraldocelot.adobeioruntime.net/api/v1/web/default/fusion-proxy';
 
-    let pageData = {};
+    const state = { context: null, pageData: null };
 
     function setStatus(type, message) {
-      const status = document.getElementById('status');
-      status.className = 'status ' + type;
-      status.textContent = message;
+      const el = document.getElementById('status');
+      const spinner = type === 'loading' ? '<span class="spinner"></span>' : '';
+      el.className = 'status status--' + type;
+      el.innerHTML = spinner + message;
     }
 
-    // Get auth token from DA.live's IMS
-    async function getAuthToken() {
-      // Method 1: Try to get from DA.live's global
-      if (window.adobeIMS?.getAccessToken) {
-        try {
-          const token = await window.adobeIMS.getAccessToken();
-          if (token?.token) return token.token;
-        } catch (e) { console.log('adobeIMS method failed:', e); }
-      }
-
-      // Method 2: Check parent's adobeIMS
-      try {
-        if (window.parent.adobeIMS?.getAccessToken) {
-          const token = await window.parent.adobeIMS.getAccessToken();
-          if (token?.token) return token.token;
-        }
-      } catch (e) { console.log('parent adobeIMS failed:', e); }
-
-      // Method 3: Look in sessionStorage/localStorage
-      for (const storage of [sessionStorage, localStorage]) {
-        try {
-          for (let i = 0; i < storage.length; i++) {
-            const key = storage.key(i);
-            if (key?.includes('adobeid') || key?.includes('ims') || key?.includes('token')) {
-              const val = storage.getItem(key);
-              try {
-                const parsed = JSON.parse(val);
-                if (parsed?.access_token) return parsed.access_token;
-                if (parsed?.token) return parsed.token;
-              } catch (e) {}
-            }
-          }
-        } catch (e) {}
-      }
-
-      return null;
+    function clearStatus() {
+      document.getElementById('status').className = '';
+      document.getElementById('status').innerHTML = '';
     }
 
-    // Extract context from parent URL: da.live/edit#/org/repo/path
-    function getContextFromUrl() {
-      try {
-        const parentUrl = window.parent.location.href;
-        // Pattern: da.live/edit#/org/repo/path or da.live/#/org/repo/path
-        const hashMatch = parentUrl.match(/#\/([^\/]+)\/([^\/]+)\/(.+)/);
-        if (hashMatch) {
-          return {
-            org: hashMatch[1],
-            repo: hashMatch[2],
-            path: '/' + hashMatch[3]
-          };
-        }
-      } catch (e) {
-        console.log('Could not access parent URL:', e);
-      }
-      
-      // Fallback: try referrer
-      try {
-        const ref = document.referrer;
-        const hashMatch = ref.match(/#\/([^\/]+)\/([^\/]+)\/(.+)/);
-        if (hashMatch) {
-          return {
-            org: hashMatch[1],
-            repo: hashMatch[2],
-            path: '/' + hashMatch[3]
-          };
-        }
-      } catch (e) {}
-
-      return null;
+    // Build preview URL from context
+    function buildPreviewUrl(ctx) {
+      const path = ctx.path.replace(/^\/+/, '').replace(/\.html?$/, '');
+      return `https://main--${ctx.repo}--${ctx.org}.aem.page/${path}`;
     }
 
-    // Initialize: load page data
-    async function init() {
-      setStatus('loading', 'Loading page data...');
-
-      const ctx = getContextFromUrl();
-      
-      if (!ctx) {
-        setStatus('error', 'Could not determine page context. Please open from DA.live editor.');
-        return;
-      }
-
-      const { org, repo, path } = ctx;
-      const name = path.split('/').pop().replace(/\.html$/, '');
-      const previewUrl = `https://main--${repo}--${org}.aem.page${path.replace(/\.html$/, '')}`;
-
-      // Fetch title from preview
-      let title = name;
+    // Fetch page title from preview URL
+    async function fetchPageTitle(previewUrl, fallbackName) {
       try {
         const resp = await fetch(previewUrl);
         if (resp.ok) {
           const html = await resp.text();
           const match = html.match(/<title>([^<]*)<\/title>/i);
-          if (match) title = match[1].split('|')[0].trim() || name;
+          if (match) {
+            const title = match[1].split('|')[0].trim();
+            if (title) return title;
+          }
         }
       } catch (e) {
         console.log('Title fetch failed:', e);
       }
-
-      pageData = { title, name, previewUrl };
-
-      // Update UI
-      document.getElementById('title').value = title;
-      document.getElementById('name').value = name;
-      document.getElementById('previewUrl').value = previewUrl;
-      
-      // Clear loading status
-      document.getElementById('status').className = 'status';
+      return fallbackName;
     }
 
-    // Send data
-    document.getElementById('sendBtn').addEventListener('click', async () => {
-      const btn = document.getElementById('sendBtn');
-      btn.disabled = true;
-      setStatus('loading', 'Sending...');
+    // Initialize using DA SDK (same pattern as Send For Review)
+    async function init() {
+      setStatus('loading', 'Loading page context...');
 
       try {
-        const token = await getAuthToken();
+        // Import DA SDK
+        const DA_SDK = await import('https://da.live/nx/utils/sdk.js');
+        const sdk = await DA_SDK.default;
 
-        if (!token) {
-          // Try without auth - Runtime will reject if required
-          console.warn('No auth token found, attempting without auth');
+        console.log('DA SDK context:', sdk?.context);
+
+        if (!sdk?.context?.org || !sdk?.context?.repo) {
+          setStatus('error', 'Could not determine page context. Please open a page in DA.live.');
+          return;
         }
 
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
+        state.context = sdk.context;
+        const ctx = state.context;
 
+        // Extract page info
+        const path = ctx.path || '';
+        const name = path.split('/').pop().replace(/\.html?$/, '') || 'index';
+        const previewUrl = buildPreviewUrl(ctx);
+
+        // Fetch title
+        const title = await fetchPageTitle(previewUrl, name);
+
+        state.pageData = { title, name, previewUrl };
+
+        // Update UI
+        document.getElementById('title').value = title;
+        document.getElementById('name').value = name;
+        document.getElementById('previewUrl').value = previewUrl;
+        document.getElementById('sendBtn').disabled = false;
+
+        clearStatus();
+
+      } catch (error) {
+        console.error('Init error:', error);
+        setStatus('error', 'Failed to initialize: ' + error.message);
+      }
+    }
+
+    // Send data to Runtime proxy -> Fusion webhook
+    async function sendData() {
+      const btn = document.getElementById('sendBtn');
+      btn.disabled = true;
+      setStatus('loading', 'Sending to webhook...');
+
+      try {
         const response = await fetch(RUNTIME_URL, {
           method: 'POST',
-          headers,
-          body: JSON.stringify({ data: pageData })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: state.pageData })
         });
 
         let result;
         try {
           result = await response.json();
         } catch (e) {
-          result = { error: `HTTP ${response.status}` };
+          result = {};
         }
 
         if (response.ok && result.success) {
-          setStatus('success', '✓ Data sent successfully!');
+          setStatus('success', '✓ Data sent successfully to Fusion!');
         } else {
           throw new Error(result.error || `HTTP ${response.status}`);
         }
       } catch (e) {
+        console.error('Send error:', e);
         setStatus('error', '✗ Failed: ' + e.message);
-      } finally {
         btn.disabled = false;
       }
-    });
+    }
 
+    // Event listeners
+    document.getElementById('sendBtn').addEventListener('click', sendData);
     document.getElementById('closeBtn').addEventListener('click', () => {
       window.parent.postMessage({ action: 'close' }, '*');
     });
 
-    // Run init
+    // Start
     init();
   </script>
 </body>
