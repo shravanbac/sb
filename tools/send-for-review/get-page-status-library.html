@@ -49,7 +49,6 @@
       padding: 16px 20px;
     }
 
-    /* Status Messages */
     .status-message {
       font-weight: 600;
       margin-bottom: 16px;
@@ -87,7 +86,6 @@
       border: 1px solid #f5c6cb;
     }
 
-    /* Page Details */
     .page-details {
       margin: 16px 0;
     }
@@ -135,7 +133,6 @@
       font-style: italic;
     }
 
-    /* Buttons */
     .actions {
       display: flex;
       gap: 12px;
@@ -178,7 +175,6 @@
       background-color: #f0f7fc;
     }
 
-    /* Loading State */
     .notice {
       text-align: center;
       padding: 20px;
@@ -200,7 +196,6 @@
       }
     }
 
-    /* Info Note */
     .info-note {
       font-size: 12px;
       color: #666;
@@ -211,7 +206,6 @@
       border-radius: 4px;
     }
 
-    /* Status Badge */
     .status-badge {
       display: inline-block;
       padding: 4px 12px;
@@ -236,14 +230,12 @@
       color: #0c5460;
     }
 
-    /* Character count display */
     .char-count {
       font-size: 11px;
       color: #888;
       font-weight: normal;
     }
 
-    /* Issue items display */
     .issue-item {
       display: inline-block;
       background-color: #fff3cd;
@@ -254,7 +246,6 @@
       margin: 2px 4px 2px 0;
     }
 
-    /* Debug Panel */
     .debug-toggle {
       font-size: 12px;
       color: #666;
@@ -289,13 +280,15 @@
     /**
      * Get Page Current Status Plugin
      * DA.live Library integration for checking review status
+     * Uses Adobe I/O Runtime proxy for secure webhook authentication
      */
 
     // ============================================
-    // CONFIGURATION
+    // CONFIGURATION - Using Adobe I/O Runtime Proxy
     // ============================================
     const CONFIG = Object.freeze({
-      statusWebhookUrl: 'https://hook.us2.make.com/2m2qfnd6ad4283weagp7xlyk66npgsup',
+      // Runtime proxy URL (Basic Auth handled server-side)
+      statusProxyUrl: 'https://23750-832emeraldocelot.adobeioruntime.net/api/v1/web/default/status-check-proxy',
       defaultRef: 'main',
       logoPath: './assets/agilent-logo.png',
     });
@@ -359,21 +352,23 @@
     }
 
     // ============================================
-    // API
+    // API - Using Runtime Proxy
     // ============================================
     async function checkReviewStatus(ctx) {
-      log('Checking review status');
+      log('Checking review status via proxy');
       try {
-        const response = await fetch(CONFIG.statusWebhookUrl, {
+        const response = await fetch(CONFIG.statusProxyUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'check-status',
-            pageIdentifier: ctx.pageIdentifier,
-            org: ctx.org,
-            site: ctx.site,
-            ref: ctx.ref,
-            path: ctx.path,
+            data: {
+              action: 'check-status',
+              pageIdentifier: ctx.pageIdentifier,
+              org: ctx.org,
+              site: ctx.site,
+              ref: ctx.ref,
+              path: ctx.path,
+            }
           }),
         });
 
@@ -531,25 +526,21 @@
     function renderInReview(data) {
       const ctx = state.context;
       
-      // SEO data
       const seoTitle = data.seo?.title?.content || data.title || '';
       const seoTitleLength = data.seo?.title?.length || seoTitle.length || 0;
       const seoDescription = data.seo?.metaDescription?.content || '';
       const seoDescLength = data.seo?.metaDescription?.length || 0;
       
-      // SEO issues
       const seoIssues = data.seo?.issues || [];
       const seoIssuesHtml = seoIssues.length > 0
         ? seoIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
         : '<span class="detail-row__value--success">None</span>';
       
-      // Heading issues
       const headingIssues = data.headingStructure?.issues || [];
       const headingIssuesHtml = headingIssues.length > 0
         ? headingIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
         : '<span class="detail-row__value--success">None</span>';
       
-      // Blocks
       const blocks = data.blocks?.blockNames?.length > 0
         ? data.blocks.blockNames.join(', ')
         : 'None';
@@ -596,25 +587,21 @@
     function renderComplete(data) {
       const ctx = state.context;
       
-      // SEO data
       const seoTitle = data.seo?.title?.content || data.title || '';
       const seoTitleLength = data.seo?.title?.length || seoTitle.length || 0;
       const seoDescription = data.seo?.metaDescription?.content || '';
       const seoDescLength = data.seo?.metaDescription?.length || 0;
       
-      // SEO issues
       const seoIssues = data.seo?.issues || [];
       const seoIssuesHtml = seoIssues.length > 0
         ? seoIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
         : '<span class="detail-row__value--success">None</span>';
       
-      // Heading issues
       const headingIssues = data.headingStructure?.issues || [];
       const headingIssuesHtml = headingIssues.length > 0
         ? headingIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
         : '<span class="detail-row__value--success">None</span>';
       
-      // Blocks
       const blocks = data.blocks?.blockNames?.length > 0
         ? data.blocks.blockNames.join(', ')
         : 'None';

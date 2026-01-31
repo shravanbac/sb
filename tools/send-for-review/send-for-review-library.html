@@ -301,14 +301,12 @@
       display: block;
     }
 
-    /* Character count display */
     .char-count {
       font-size: 11px;
       color: #888;
       font-weight: normal;
     }
 
-    /* Issue items display */
     .issue-item {
       display: inline-block;
       background-color: #fff3cd;
@@ -331,14 +329,16 @@
     /**
      * Send For Review Plugin
      * DA.live Library integration for content review workflow
+     * Uses Adobe I/O Runtime proxy for secure webhook authentication
      */
 
     // ============================================
-    // CONFIGURATION
+    // CONFIGURATION - Using Adobe I/O Runtime Proxy
     // ============================================
     const CONFIG = Object.freeze({
-      submitWebhookUrl: 'https://hook.us2.make.com/d5lqgghlwlcalpy2zw0l7tqukr0u75bd',
-      statusWebhookUrl: 'https://hook.us2.make.com/2m2qfnd6ad4283weagp7xlyk66npgsup',
+      // Runtime proxy URLs (Basic Auth handled server-side)
+      submitProxyUrl: 'https://23750-832emeraldocelot.adobeioruntime.net/api/v1/web/default/send-for-review-proxy',
+      statusProxyUrl: 'https://23750-832emeraldocelot.adobeioruntime.net/api/v1/web/default/status-check-proxy',
       defaultRef: 'main',
       logoPath: './assets/agilent-logo.png',
       emailStorageKey: 'sfr_user_email',
@@ -436,21 +436,23 @@
     };
 
     // ============================================
-    // API
+    // API - Using Runtime Proxy
     // ============================================
     async function checkReviewStatus(ctx) {
-      log('Checking review status');
+      log('Checking review status via proxy');
       try {
-        const response = await fetch(CONFIG.statusWebhookUrl, {
+        const response = await fetch(CONFIG.statusProxyUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'check-status',
-            pageIdentifier: ctx.pageIdentifier,
-            org: ctx.org,
-            site: ctx.site,
-            ref: ctx.ref,
-            path: ctx.path,
+            data: {
+              action: 'check-status',
+              pageIdentifier: ctx.pageIdentifier,
+              org: ctx.org,
+              site: ctx.site,
+              ref: ctx.ref,
+              path: ctx.path,
+            }
           }),
         });
 
@@ -469,15 +471,21 @@
     }
 
     async function submitReview(payload) {
-      log('Submitting review', { pageIdentifier: payload.pageIdentifier });
-      const response = await fetch(CONFIG.submitWebhookUrl, {
+      log('Submitting review via proxy', { pageIdentifier: payload.pageIdentifier });
+      const response = await fetch(CONFIG.submitProxyUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ data: payload }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Submission failed');
       }
       return true;
     }
@@ -503,8 +511,6 @@
         const url = new URL(document.referrer);
         log('Referrer URL', document.referrer);
         
-        // DA.live edit URL pattern: da.live/edit#/org/site/path/to/page
-        // The path can have multiple segments
         const daMatch = url.href.match(/da\.live\/edit#\/([^/]+)\/([^/]+)\/(.*)?/);
         if (daMatch) {
           const pagePath = daMatch[3] || 'index';
@@ -518,7 +524,6 @@
           };
         }
         
-        // AEM preview/live URL pattern
         const aemMatch = url.host.match(/^([^-]+)--([^-]+)--([^.]+)\.aem\.(page|live)$/);
         if (aemMatch) {
           const pagePath = url.pathname.replace(/^\//, '') || 'index';
@@ -546,8 +551,6 @@
         log('DA SDK raw context', sdk?.context);
 
         if (sdk?.context) {
-          // The SDK provides the context of the page being edited in DA.live
-          // sdk.context.path is the path of the page being edited
           const sdkPath = sdk.context.path || '';
           
           return {
@@ -587,25 +590,14 @@
       const sdkCtx = await getContextFromDASDK();
       const pluginOrigin = detectPluginOrigin();
 
-      log('Context sources', { 
-        urlParams, 
-        referrerCtx, 
-        sdkCtx,
-        pluginOrigin 
-      });
+      log('Context sources', { urlParams, referrerCtx, sdkCtx, pluginOrigin });
 
-      // Priority: SDK > Referrer > URL params
-      // SDK context contains the page being edited in DA.live
       let path = sdkCtx?.path || referrerCtx?.path || urlParams.path || '';
       
-      // Only fall back to 'index' if we truly have no path
-      // Don't override valid paths from SDK
       if (!path) {
         path = 'index';
       }
       
-      // If the path somehow contains the plugin tool path, 
-      // it means SDK didn't provide the edited page context - use referrer or params
       if (path.includes('tools/send-for-review') || path.includes('send-for-review-library')) {
         log('Path contains plugin path, falling back', { originalPath: path });
         path = referrerCtx?.path || urlParams.path || 'index';
@@ -687,49 +679,18 @@
       return null;
     }
 
-    async function fetchViaParentMessage(ctx) {
-      return new Promise((resolve) => {
-        if (window.parent === window) {
-          resolve(null);
-          return;
-        }
-        const timeout = setTimeout(() => resolve(null), 2000);
-        const handler = (event) => {
-          if (event.data?.type === 'da-content-response' && event.data?.path === ctx.path) {
-            clearTimeout(timeout);
-            window.removeEventListener('message', handler);
-            resolve(event.data.content);
-          }
-        };
-        window.addEventListener('message', handler);
-        window.parent.postMessage({
-          type: 'da-content-request',
-          path: ctx.path,
-          org: ctx.org,
-          site: ctx.site,
-        }, '*');
-      });
-    }
-
     async function fetchContent(ctx) {
-      // First try SDK content
       const sdkContent = await fetchFromSDK();
       if (sdkContent) return sdkContent;
 
-      // Build fetch strategies
-      // IMPORTANT: Prioritize FULL PAGE fetches over .plain.html because
-      // .plain.html only contains body content WITHOUT <head> metadata (title, description, etc.)
       const strategies = [];
       
-      // Same-origin full page first (includes <head> with metadata)
       if (ctx.sameOriginPreviewUrl) {
         strategies.push({ url: ctx.sameOriginPreviewUrl, source: 'same-origin-full', isPlain: false });
       }
       
-      // Cross-origin full page (may fail due to CORS but try anyway)
       strategies.push({ url: ctx.previewUrl, source: 'full-page', isPlain: false });
       
-      // Fallbacks: plain HTML (body only, no metadata)
       if (ctx.sameOriginPlainUrl) {
         strategies.push({ url: ctx.sameOriginPlainUrl, source: 'same-origin-plain', isPlain: true });
       }
@@ -747,18 +708,6 @@
           log('Content fetched successfully', { source: content.source, isPlain: content.isPlain });
           return content;
         }
-      }
-
-      // Last resort: try parent postMessage
-      try {
-        log('Trying parent postMessage');
-        const content = await fetchViaParentMessage(ctx);
-        if (content) {
-          log('Parent postMessage success', { length: content.length });
-          return { html: content, source: 'parent-message', isPlain: true };
-        }
-      } catch (error) {
-        log('Parent postMessage error', error.message);
       }
       
       log('All fetch strategies failed');
@@ -843,30 +792,20 @@
     }
 
     function analyzeSEO(doc) {
-      // Log what we're working with
-      const hasHead = !!doc.querySelector('head');
-      const hasTitle = !!doc.querySelector('title');
-      const hasMeta = !!doc.querySelector('meta[name="description"]');
-      log('SEO analysis starting', { hasHead, hasTitle, hasMeta });
-      
       const title = doc.querySelector('title')?.textContent?.trim() || '';
       const description = doc.querySelector('meta[name="description"]')?.content?.trim() || '';
       const canonical = doc.querySelector('link[rel="canonical"]')?.href || '';
       const robots = doc.querySelector('meta[name="robots"]')?.content || '';
       const lang = doc.documentElement?.lang || doc.querySelector('html')?.lang || '';
       
-      log('SEO data extracted', { title, descLength: description.length, canonical: !!canonical, lang });
-      
       const issues = [];
 
-      // Title: 55 chars max with spaces
       if (!title) {
         issues.push('Missing title');
       } else if (title.length > CONFIG.seo.titleMaxLength) {
         issues.push(`Title too long (${title.length} chars, max ${CONFIG.seo.titleMaxLength})`);
       }
 
-      // Description: 160 chars max with spaces
       if (!description) {
         issues.push('Missing description');
       } else if (description.length > CONFIG.seo.descriptionMaxLength) {
@@ -1128,25 +1067,21 @@
       const analysis = viewState.analysis || state.analysis;
       const name = viewState.name || ctx.path.split('/').pop() || 'index';
       
-      // Use current analysis for SEO data (not the old submission data)
       const seoTitle = analysis?.seo?.title?.content || data.title || '';
       const seoTitleLength = analysis?.seo?.title?.length || seoTitle.length || 0;
       const seoDescription = analysis?.seo?.metaDescription?.content || '';
       const seoDescLength = analysis?.seo?.metaDescription?.length || 0;
       
-      // SEO issues from current analysis
       const seoIssues = analysis?.seo?.issues || [];
       const seoIssuesHtml = seoIssues.length > 0 
         ? seoIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
         : '<span class="detail-row__value--success">None</span>';
       
-      // Heading issues from current analysis
       const headingIssues = analysis?.headingStructure?.issues || [];
       const headingIssuesHtml = headingIssues.length > 0
         ? headingIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
         : '<span class="detail-row__value--success">None</span>';
       
-      // Blocks from current analysis
       const blocks = analysis?.blocks?.blockNames?.length > 0 
         ? analysis.blocks.blockNames.join(', ') 
         : 'None';
@@ -1202,27 +1137,23 @@
     function renderReadyForm(title, name, analysis) {
       const storedEmail = storage.getEmail();
       
-      // SEO data
       const seoTitle = analysis?.seo?.title?.content || '';
       const seoTitleLength = analysis?.seo?.title?.length || 0;
       const seoDescription = analysis?.seo?.metaDescription?.content || '';
       const seoDescLength = analysis?.seo?.metaDescription?.length || 0;
       
-      // Build SEO issues display
       const seoIssues = analysis?.seo?.issues || [];
       const seoIssuesHtml = seoIssues.length > 0 
         ? seoIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
         : '<span class="detail-row__value--success">None</span>';
       const seoClass = seoIssues.length > 0 ? 'detail-row__value--warning' : '';
       
-      // Heading issues
       const headingIssues = analysis?.headingStructure?.issues || [];
       const headingIssuesHtml = headingIssues.length > 0
         ? headingIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
         : '<span class="detail-row__value--success">None</span>';
       const headingClass = headingIssues.length > 0 ? 'detail-row__value--warning' : '';
       
-      // Blocks
       const blocks = analysis?.blocks?.blockNames?.length > 0 
         ? analysis.blocks.blockNames.join(', ') 
         : 'None';
@@ -1305,24 +1236,20 @@
     }
 
     function renderSuccess(payload) {
-      // SEO issues
       const seoIssues = payload.seo?.issues || [];
       const seoIssuesHtml = seoIssues.length > 0 
         ? seoIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
         : '<span class="detail-row__value--success">None</span>';
       
-      // Heading issues
       const headingIssues = payload.headingStructure?.issues || [];
       const headingIssuesHtml = headingIssues.length > 0
         ? headingIssues.map(issue => `<span class="issue-item">${escapeHtml(issue)}</span>`).join('')
         : '<span class="detail-row__value--success">None</span>';
       
-      // Blocks
       const blocks = payload.blocks?.blockNames?.length > 0 
         ? payload.blocks.blockNames.join(', ') 
         : 'None';
       
-      // Description
       const description = payload.seo?.metaDescription?.content || '';
       const descLength = payload.seo?.metaDescription?.length || 0;
 
@@ -1469,36 +1396,20 @@
         render({ status: STATUS.LOADING, message: 'Checking review status…' });
         const statusResponse = await checkReviewStatus(state.context);
 
-        // If in-review, just show status (no submit allowed)
         if (statusResponse?.status === STATUS.IN_REVIEW) {
           log('Review in progress', statusResponse);
           render({ status: STATUS.IN_REVIEW, data: statusResponse });
           return;
         }
 
-        // For both 'complete' and 'no review' states, we need to analyze the page
-        // because the user can submit a new review
         render({ status: STATUS.LOADING, message: 'Analyzing page…' });
         const content = await fetchContent(state.context);
         const name = state.context.path.split('/').pop() || 'index';
         let title = name;
 
         if (content?.html) {
-          log('Parsing HTML content', { 
-            source: content.source, 
-            isPlain: content.isPlain,
-            htmlLength: content.html.length,
-            hasHeadTag: content.html.includes('<head'),
-            hasTitleTag: content.html.includes('<title')
-          });
-          
           const doc = new DOMParser().parseFromString(content.html, 'text/html');
           state.analysis = analyzeDocument(doc, content.isPlain);
-          
-          log('Analysis complete', { 
-            seoTitle: state.analysis?.seo?.title?.content,
-            seoIssues: state.analysis?.seo?.issues
-          });
           
           title = state.analysis?.seo?.title?.content || name;
           if ((!title || title === name) && state.analysis?.headingStructure?.headings?.length) {
@@ -1506,13 +1417,10 @@
             if (h1) title = h1.text;
           }
         } else {
-          log('Content fetch failed - using minimal analysis');
           state.analysis = createMinimalAnalysis();
         }
 
-        // Now render based on status
         if (statusResponse?.status === STATUS.COMPLETE) {
-          log('Page published - showing form for new review', statusResponse);
           render({ 
             status: STATUS.COMPLETE, 
             data: statusResponse,
@@ -1521,7 +1429,6 @@
             analysis: state.analysis
           });
         } else {
-          // No active review - show ready form
           if (content?.html) {
             render({ status: STATUS.READY, title, name, analysis: state.analysis });
           } else {
