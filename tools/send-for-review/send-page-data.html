@@ -40,8 +40,13 @@
   <div class="status" id="status"></div>
 
   <script type="module">
-    // Auth passed via URL params (browser strips Authorization header in no-cors)
-    const WEBHOOK_URL = 'https://hook.fusion.adobe.com/4r1b2137fbuus3vcm1kavi1f2g992y9o?user=secure-user&pass=secure';
+    const WEBHOOK_URL = 'https://hook.fusion.adobe.com/x26uj51s2j853mj3qblhxqfwvsowvj65';
+    
+    // Credentials sent in payload for Fusion to validate
+    const AUTH = {
+      user: 'secure-user',
+      pass: 'secure'
+    };
 
     let pageData = {};
 
@@ -83,10 +88,16 @@
       setStatus('loading', 'Sending...');
 
       try {
+        // Include auth in payload for Fusion validation
+        const securePayload = {
+          auth: AUTH,
+          data: pageData
+        };
+
         await fetch(WEBHOOK_URL, {
           method: 'POST',
           mode: 'no-cors',
-          body: JSON.stringify(pageData)
+          body: JSON.stringify(securePayload)
         });
 
         setStatus('success', '✓ Data sent to webhook!');
