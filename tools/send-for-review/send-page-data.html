@@ -26,6 +26,16 @@
   <h2>Send Page Data</h2>
   
   <div class="field">
+    <label>Title</label>
+    <input type="text" id="title" readonly>
+  </div>
+
+  <div class="field">
+    <label>Name</label>
+    <input type="text" id="name" readonly>
+  </div>
+  
+  <div class="field">
     <label>Preview URL</label>
     <input type="text" id="previewUrl" readonly>
   </div>
@@ -40,16 +50,44 @@
   <div class="status" id="status"></div>
 
   <script type="module">
-    let pageData = {};
-    let apiBase = '';
+    // Adobe I/O Runtime proxy URL
+    const RUNTIME_URL = 'https://23750-832emeraldocelot.adobeioruntime.net/api/v1/web/default/fusion-proxy';
 
+    let pageData = {};
+    let authToken = '';
+
+    // Get the Bearer token from DA.live cookies or localStorage
+    function getAuthToken() {
+      // Try cookies first
+      const cookies = document.cookie.split(';');
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'auth_token' || name === 'da_token') {
+          return decodeURIComponent(value);
+        }
+      }
+      
+      // Try localStorage
+      try {
+        const stored = localStorage.getItem('da_token') || localStorage.getItem('auth_token');
+        if (stored) return stored;
+      } catch (e) {}
+      
+      return '';
+    }
+
+    // Listen for context from DA.live parent
     window.addEventListener('message', async (e) => {
       if (e.data?.path) {
-        const { path, repo, org } = e.data;
-        apiBase = `https://main--${repo}--${org}.aem.live`;
+        const { path, repo, org, token } = e.data;
+        
+        // Store token if passed from parent
+        if (token) authToken = token;
+        
         const previewUrl = `https://main--${repo}--${org}.aem.page${path.replace(/\.html$/, '')}`;
         const name = path.split('/').pop().replace(/\.html$/, '');
         
+        // Try to fetch title from preview page
         let title = name;
         try {
           const resp = await fetch(previewUrl);
@@ -63,11 +101,16 @@
         }
 
         pageData = { title, name, previewUrl };
+        
+        // Update UI
+        document.getElementById('title').value = title;
+        document.getElementById('name').value = name;
         document.getElementById('previewUrl').value = previewUrl;
         document.getElementById('payloadPreview').textContent = 'Payload:\n' + JSON.stringify(pageData, null, 2);
       }
     });
 
+    // Request context from DA.live parent
     window.parent.postMessage({ action: 'getContext' }, '*');
 
     function setStatus(type, message) {
@@ -79,19 +122,48 @@
     document.getElementById('sendBtn').addEventListener('click', async () => {
       const btn = document.getElementById('sendBtn');
       btn.disabled = true;
-      setStatus('loading', 'Sending...');
+      setStatus('loading', 'Authenticating and sending...');
 
       try {
-        const response = await fetch(`${apiBase}/scripts/apis/send-page-data`, {
+        // Get token if not already set
+        if (!authToken) {
+          authToken = getAuthToken();
+        }
+
+        // Try to get token from parent window's fetch headers
+        if (!authToken) {
+          // Check if we can access parent's auth
+          try {
+            const parentAuth = window.parent.document.cookie;
+            if (parentAuth) {
+              const match = parentAuth.match(/auth_token=([^;]+)/);
+              if (match) authToken = decodeURIComponent(match[1]);
+            }
+          } catch (e) {
+            // Cross-origin, expected
+          }
+        }
+
+        if (!authToken) {
+          throw new Error('No authentication token found. Please ensure you are signed in to DA.live.');
+        }
+
+        // Call Adobe I/O Runtime proxy with Bearer token
+        const response = await fetch(RUNTIME_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(pageData)
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ data: pageData })
         });
 
-        if (response.ok) {
-          setStatus('success', '✓ Data sent successfully!');
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          setStatus('success', '✓ Data sent successfully to Fusion webhook!');
         } else {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(result.error || `HTTP ${response.status}`);
         }
       } catch (e) {
         setStatus('error', '✗ Failed: ' + e.message);
