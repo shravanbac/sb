@@ -40,19 +40,13 @@
   <div class="status" id="status"></div>
 
   <script type="module">
-    const WEBHOOK_URL = 'https://hook.fusion.adobe.com/x26uj51s2j853mj3qblhxqfwvsowvj65';
-    
-    // Credentials sent in payload for Fusion to validate
-    const AUTH = {
-      user: 'secure-user',
-      pass: 'secure'
-    };
-
     let pageData = {};
+    let apiBase = '';
 
     window.addEventListener('message', async (e) => {
       if (e.data?.path) {
         const { path, repo, org } = e.data;
+        apiBase = `https://main--${repo}--${org}.aem.live`;
         const previewUrl = `https://main--${repo}--${org}.aem.page${path.replace(/\.html$/, '')}`;
         const name = path.split('/').pop().replace(/\.html$/, '');
         
@@ -88,19 +82,17 @@
       setStatus('loading', 'Sending...');
 
       try {
-        // Include auth in payload for Fusion validation
-        const securePayload = {
-          auth: AUTH,
-          data: pageData
-        };
-
-        await fetch(WEBHOOK_URL, {
+        const response = await fetch(`${apiBase}/scripts/apis/send-page-data`, {
           method: 'POST',
-          mode: 'no-cors',
-          body: JSON.stringify(securePayload)
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pageData)
         });
 
-        setStatus('success', '✓ Data sent to webhook!');
+        if (response.ok) {
+          setStatus('success', '✓ Data sent successfully!');
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
       } catch (e) {
         setStatus('error', '✗ Failed: ' + e.message);
       } finally {
