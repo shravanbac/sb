@@ -19,7 +19,6 @@
     .status.success { display: block; background: #e6f4ea; color: #1e7e34; }
     .status.error { display: block; background: #fce8e8; color: #c62828; }
     .status.loading { display: block; background: #e3f2fd; color: #1565c0; }
-    .payload-preview { margin-top: 12px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 11px; font-family: monospace; white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -40,8 +39,6 @@
     <input type="text" id="previewUrl" readonly>
   </div>
 
-  <div class="payload-preview" id="payloadPreview">Loading...</div>
-  
   <div class="actions">
     <button class="btn-primary" id="sendBtn">Send to Webhook</button>
     <button class="btn-secondary" id="closeBtn">Close</button>
@@ -50,68 +47,9 @@
   <div class="status" id="status"></div>
 
   <script type="module">
-    // Adobe I/O Runtime proxy URL
     const RUNTIME_URL = 'https://23750-832emeraldocelot.adobeioruntime.net/api/v1/web/default/fusion-proxy';
 
     let pageData = {};
-    let authToken = '';
-
-    // Get the Bearer token from DA.live cookies or localStorage
-    function getAuthToken() {
-      // Try cookies first
-      const cookies = document.cookie.split(';');
-      for (const cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'auth_token' || name === 'da_token') {
-          return decodeURIComponent(value);
-        }
-      }
-      
-      // Try localStorage
-      try {
-        const stored = localStorage.getItem('da_token') || localStorage.getItem('auth_token');
-        if (stored) return stored;
-      } catch (e) {}
-      
-      return '';
-    }
-
-    // Listen for context from DA.live parent
-    window.addEventListener('message', async (e) => {
-      if (e.data?.path) {
-        const { path, repo, org, token } = e.data;
-        
-        // Store token if passed from parent
-        if (token) authToken = token;
-        
-        const previewUrl = `https://main--${repo}--${org}.aem.page${path.replace(/\.html$/, '')}`;
-        const name = path.split('/').pop().replace(/\.html$/, '');
-        
-        // Try to fetch title from preview page
-        let title = name;
-        try {
-          const resp = await fetch(previewUrl);
-          if (resp.ok) {
-            const html = await resp.text();
-            const match = html.match(/<title>([^<]*)<\/title>/i);
-            if (match) title = match[1].split('|')[0].trim() || name;
-          }
-        } catch (err) {
-          console.warn('Title fetch failed:', err);
-        }
-
-        pageData = { title, name, previewUrl };
-        
-        // Update UI
-        document.getElementById('title').value = title;
-        document.getElementById('name').value = name;
-        document.getElementById('previewUrl').value = previewUrl;
-        document.getElementById('payloadPreview').textContent = 'Payload:\n' + JSON.stringify(pageData, null, 2);
-      }
-    });
-
-    // Request context from DA.live parent
-    window.parent.postMessage({ action: 'getContext' }, '*');
 
     function setStatus(type, message) {
       const status = document.getElementById('status');
@@ -119,49 +57,150 @@
       status.textContent = message;
     }
 
+    // Get auth token from DA.live's IMS
+    async function getAuthToken() {
+      // Method 1: Try to get from DA.live's global
+      if (window.adobeIMS?.getAccessToken) {
+        try {
+          const token = await window.adobeIMS.getAccessToken();
+          if (token?.token) return token.token;
+        } catch (e) { console.log('adobeIMS method failed:', e); }
+      }
+
+      // Method 2: Check parent's adobeIMS
+      try {
+        if (window.parent.adobeIMS?.getAccessToken) {
+          const token = await window.parent.adobeIMS.getAccessToken();
+          if (token?.token) return token.token;
+        }
+      } catch (e) { console.log('parent adobeIMS failed:', e); }
+
+      // Method 3: Look in sessionStorage/localStorage
+      for (const storage of [sessionStorage, localStorage]) {
+        try {
+          for (let i = 0; i < storage.length; i++) {
+            const key = storage.key(i);
+            if (key?.includes('adobeid') || key?.includes('ims') || key?.includes('token')) {
+              const val = storage.getItem(key);
+              try {
+                const parsed = JSON.parse(val);
+                if (parsed?.access_token) return parsed.access_token;
+                if (parsed?.token) return parsed.token;
+              } catch (e) {}
+            }
+          }
+        } catch (e) {}
+      }
+
+      return null;
+    }
+
+    // Extract context from parent URL: da.live/edit#/org/repo/path
+    function getContextFromUrl() {
+      try {
+        const parentUrl = window.parent.location.href;
+        // Pattern: da.live/edit#/org/repo/path or da.live/#/org/repo/path
+        const hashMatch = parentUrl.match(/#\/([^\/]+)\/([^\/]+)\/(.+)/);
+        if (hashMatch) {
+          return {
+            org: hashMatch[1],
+            repo: hashMatch[2],
+            path: '/' + hashMatch[3]
+          };
+        }
+      } catch (e) {
+        console.log('Could not access parent URL:', e);
+      }
+      
+      // Fallback: try referrer
+      try {
+        const ref = document.referrer;
+        const hashMatch = ref.match(/#\/([^\/]+)\/([^\/]+)\/(.+)/);
+        if (hashMatch) {
+          return {
+            org: hashMatch[1],
+            repo: hashMatch[2],
+            path: '/' + hashMatch[3]
+          };
+        }
+      } catch (e) {}
+
+      return null;
+    }
+
+    // Initialize: load page data
+    async function init() {
+      setStatus('loading', 'Loading page data...');
+
+      const ctx = getContextFromUrl();
+      
+      if (!ctx) {
+        setStatus('error', 'Could not determine page context. Please open from DA.live editor.');
+        return;
+      }
+
+      const { org, repo, path } = ctx;
+      const name = path.split('/').pop().replace(/\.html$/, '');
+      const previewUrl = `https://main--${repo}--${org}.aem.page${path.replace(/\.html$/, '')}`;
+
+      // Fetch title from preview
+      let title = name;
+      try {
+        const resp = await fetch(previewUrl);
+        if (resp.ok) {
+          const html = await resp.text();
+          const match = html.match(/<title>([^<]*)<\/title>/i);
+          if (match) title = match[1].split('|')[0].trim() || name;
+        }
+      } catch (e) {
+        console.log('Title fetch failed:', e);
+      }
+
+      pageData = { title, name, previewUrl };
+
+      // Update UI
+      document.getElementById('title').value = title;
+      document.getElementById('name').value = name;
+      document.getElementById('previewUrl').value = previewUrl;
+      
+      // Clear loading status
+      document.getElementById('status').className = 'status';
+    }
+
+    // Send data
     document.getElementById('sendBtn').addEventListener('click', async () => {
       const btn = document.getElementById('sendBtn');
       btn.disabled = true;
-      setStatus('loading', 'Authenticating and sending...');
+      setStatus('loading', 'Sending...');
 
       try {
-        // Get token if not already set
-        if (!authToken) {
-          authToken = getAuthToken();
+        const token = await getAuthToken();
+
+        if (!token) {
+          // Try without auth - Runtime will reject if required
+          console.warn('No auth token found, attempting without auth');
         }
 
-        // Try to get token from parent window's fetch headers
-        if (!authToken) {
-          // Check if we can access parent's auth
-          try {
-            const parentAuth = window.parent.document.cookie;
-            if (parentAuth) {
-              const match = parentAuth.match(/auth_token=([^;]+)/);
-              if (match) authToken = decodeURIComponent(match[1]);
-            }
-          } catch (e) {
-            // Cross-origin, expected
-          }
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
         }
 
-        if (!authToken) {
-          throw new Error('No authentication token found. Please ensure you are signed in to DA.live.');
-        }
-
-        // Call Adobe I/O Runtime proxy with Bearer token
         const response = await fetch(RUNTIME_URL, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          },
+          headers,
           body: JSON.stringify({ data: pageData })
         });
 
-        const result = await response.json();
+        let result;
+        try {
+          result = await response.json();
+        } catch (e) {
+          result = { error: `HTTP ${response.status}` };
+        }
 
         if (response.ok && result.success) {
-          setStatus('success', '✓ Data sent successfully to Fusion webhook!');
+          setStatus('success', '✓ Data sent successfully!');
         } else {
           throw new Error(result.error || `HTTP ${response.status}`);
         }
@@ -175,6 +214,9 @@
     document.getElementById('closeBtn').addEventListener('click', () => {
       window.parent.postMessage({ action: 'close' }, '*');
     });
+
+    // Run init
+    init();
   </script>
 </body>
 </html>
