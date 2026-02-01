@@ -287,7 +287,7 @@
     // CONFIGURATION - Using Adobe I/O Runtime Proxy
     // ============================================
     const CONFIG = Object.freeze({
-      // Runtime proxy URL (Basic Auth handled server-side)
+      // Single unified router (handles both submit and status, routes by environment)
       proxyUrl: 'https://23750-832emeraldocelot.adobeioruntime.net/api/v1/web/default/review-router',
       defaultRef: 'main',
       logoPath: './assets/agilent-logo.png',
@@ -357,7 +357,7 @@
     async function checkReviewStatus(ctx) {
       log('Checking review status via proxy');
       try {
-        const response = await fetch(CONFIG.statusProxyUrl, {
+        const response = await fetch(CONFIG.proxyUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
