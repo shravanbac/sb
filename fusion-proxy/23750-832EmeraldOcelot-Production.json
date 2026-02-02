@@ -1,0 +1,38 @@
+{
+  "project": {
+    "id": "4566206088345579944",
+    "name": "832EmeraldOcelot",
+    "title": "fusion webhook proxy",
+    "description": "",
+    "org": {
+      "id": "23750",
+      "name": "Cognizant Technology Solutions",
+      "ims_org_id": "2CCEE7B4564203767F000101@AdobeOrg"
+    },
+    "workspace": {
+      "id": "4566206088345611852",
+      "name": "Production",
+      "title": "Production",
+      "description": "Project production workspace",
+      "action_url": "https://23750-832emeraldocelot.adobeioruntime.net",
+      "app_url": "https://23750-832emeraldocelot.adobeio-static.net",
+      "details": {
+        "credentials": [],
+        "services": [],
+        "runtime": {
+          "namespaces": [
+            {
+              "name": "23750-832emeraldocelot",
+              "auth": "a51c5775-30b0-4b86-ac12-54f138994f2c:3kdljqla4OL8PGoQqyW2B12Shf7G01ytu5ddm3Q2dfaD2L5aC3cLp7mnV4v42GFU"
+            }
+          ]
+        },
+        "events": {
+          "registrations": []
+        },
+        "mesh": {}
+      },
+      "endpoints": {}
+    }
+  }
+}
